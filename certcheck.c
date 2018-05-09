@@ -7,6 +7,7 @@ typedef struct {
 } certificate_t;
 
 int main(int argc, char *argv[]) {
+    FILE *csv_file = NULL;
 
     return 0;
 }
