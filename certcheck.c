@@ -42,7 +42,7 @@ certificates_t *initialise_certificates(size_t num_certificates) {
 certificates_t *read_input_csv(const char *csv_path) {
     FILE *stream = NULL;
     char buffer[BUFFER_SIZE] = {0};
-    char *temp = NULL, *path = NULL, *url, *saveptr = NULL;
+    char *temp = NULL, *path = NULL, *url = NULL, *saveptr = NULL;
     certificates_t *certificates = NULL;
     size_t slen, num_certificates = START_SIZE;
     const char *delim = " ,";
@@ -98,7 +98,7 @@ certificates_t *read_input_csv(const char *csv_path) {
         url = strtok_r(NULL, delim, &saveptr);
         certificates->info[certificates->n].url = strdup(url);
         if (!certificates->info[certificates->n].url) {
-            fprintf(stderr, "Error: stdup() can't parse url\n");
+            fprintf(stderr, "Error: strdup() can't parse url\n");
             exit(EXIT_FAILURE);
         }
 
