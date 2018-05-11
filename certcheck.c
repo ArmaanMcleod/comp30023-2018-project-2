@@ -1,6 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <unistd.h>
+
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
 
 #define START_SIZE 5;
 #define BUFFER_SIZE 1024
@@ -53,7 +61,7 @@ certificates_t *read_input_csv(const char *csv_path) {
     // Open csv file
     stream = fopen(csv_path, "r");
     if (!stream) {
-        fprintf(stderr, "Failed to open file");
+        fprintf(stderr, "Failed to open file\n");
         exit(EXIT_FAILURE);
     }
 
@@ -108,11 +116,37 @@ certificates_t *read_input_csv(const char *csv_path) {
     return certificates;
 }
 
+char *get_certificate_path(const char *csv_path) {
+    char *path = strdup(csv_path);
+    char *path_to_certificates = NULL;
+    const char separator = '/';
+
+    // Split apath on last slash
+    char *const split_at = strrchr(path, separator);
+
+    // If slash found, split and create current directory path
+    if(split_at != NULL) {
+        *split_at = '\0';
+
+         path_to_certificates = malloc(strlen(path) + 2);
+         memset(path_to_certificates, '\0', strlen(path) + 2);
+         strcpy(path_to_certificates, path);
+         strcat(path_to_certificates, "/");
+
+    // If not slash found, must be current directory
+    } else {
+        path_to_certificates = "./";
+    }
+
+    return path_to_certificates;
+}
+
 int main(int argc, char *argv[]) {
     certificates_t *certificates = NULL;
+    char *path_to_certificates = NULL;
 
     if (argc != 2) {
-        fprintf(stderr, "Usage: ./certcheck [csv file]\n");
+        fprintf(stderr, "Usage: ./certcheck [relative path to csv file]\n");
         exit(EXIT_FAILURE);
     }
 
@@ -123,6 +157,10 @@ int main(int argc, char *argv[]) {
         certificates->info[i].path,
         certificates->info[i].url);
     }
+
+    path_to_certificates = get_certificate_path(argv[1]);
+
+    printf("%s\n", path_to_certificates);
 
     exit(EXIT_SUCCESS);
 }

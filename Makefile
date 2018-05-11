@@ -1,5 +1,5 @@
 CC     = gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -lssl -lcrypto
 OBJ    = certcheck.o
 EXE    = certcheck
 
@@ -10,4 +10,5 @@ clean:
 	rm $(OBJ) $(EXE)
 
 scp:
-	scp *.c *.h Makefile ubuntu@115.146.93.189:comp30023/Assignment2
+	scp *.c *.h *.pem Makefile ubuntu@115.146.93.189:comp30023/Assignment2
+	scp -r sample_certs ubuntu@115.146.93.189:comp30023/Assignment2
