@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -117,33 +118,40 @@ certificates_t *read_input_csv(const char *csv_path) {
     return certificates;
 }
 
-int convert_ASN1TIME(ASN1_TIME *t, char* buf, size_t len) {
-	int rc;
-	BIO *b = BIO_new(BIO_s_mem());
-	rc = ASN1_TIME_print(b, t);
+// Check if date is valid 
+int check_date(ASN1_TIME *time_to) {
+    int day, sec;
 
-	if (rc <= 0) {
-		fprintf(stderr, "ASN1_TIME_print failed or wrote no data.\n");
-		BIO_free(b);
-		exit(EXIT_FAILURE);
-	}
+    // Not before
+    if (!ASN1_TIME_diff(&day, &sec, NULL, time_to)) {
+        fprintf(stderr, "Invalid time format\n");
+        exit(EXIT_FAILURE);
+    }
 
-	rc = BIO_gets(b, buf, len);
-	if (rc <= 0) {
-	    fprintf(stderr, "BIO_gets call failed to transfer contents to buf\n");
-		BIO_free(b);
-		exit(EXIT_FAILURE);
-	}
+    // Later
+    if (day > 0 || sec > 0) {
+        return 1;
 
-	BIO_free(b);
-	return EXIT_SUCCESS;
+    // Sooner
+    } else if (day < 0 || sec < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+void print_current_time() {
+    time_t mytime = time(NULL);
+    char * time_str = ctime(&mytime);
+    time_str[strlen(time_str)-1] = '\0';
+    printf("Current Time : %s\n", time_str);
 }
 
 void verify_certificate(const char *cert_path) {
     BIO *cert_bio = NULL;
     X509 *cert = NULL;
     int read_cert_bio;
-    //BIO *info = NULL;
+    ASN1_TIME *not_before, *not_after;
 
     // Initialise openSSL
     OpenSSL_add_all_algorithms();
@@ -167,22 +175,24 @@ void verify_certificate(const char *cert_path) {
         exit(EXIT_FAILURE);
     }
 
-    //info = BIO_new_fp(stdout,BIO_NOCLOSE);
-    //X509_print_ex(info, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
+    print_current_time();
 
     // Get time periods
-    ASN1_TIME *not_before = X509_get_notBefore(cert);
-    ASN1_TIME *not_after = X509_get_notAfter(cert);
+    not_before = X509_get_notBefore(cert);
+    not_after = X509_get_notAfter(cert);
 
-    char not_before_buffer[BUFFER_SIZE];
-    convert_ASN1TIME(not_before, not_before_buffer, BUFFER_SIZE);
+    BIO *output = BIO_new_fp(stdout, BIO_NOCLOSE);
 
-    printf("%s\n", not_before_buffer);
+    printf("Not before: ");
+    ASN1_TIME_print(output, not_before);
+    printf("\n");
+    printf("Not before: ");
+    ASN1_TIME_print(output, not_after);
+    printf("\n");
 
-    char not_after_buffer[BUFFER_SIZE];
-    convert_ASN1TIME(not_after, not_after_buffer, BUFFER_SIZE);
-
-    printf("%s\n", not_after_buffer);
+    // Not before
+    printf("%d\n", check_date(not_before));
+    printf("%d\n", check_date(not_after));
 
     return;
 }
