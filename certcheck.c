@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <time.h>
 #include <fnmatch.h>
 
 #include <openssl/x509.h>
@@ -203,6 +200,8 @@ int validate_common_name(X509 *cert, const char *domain_url) {
         return 1;
     }
 
+    OPENSSL_free(common_name);
+
     return 0;
 }
 
@@ -229,6 +228,8 @@ int validate_RSA_key_length(X509 *cert) {
             return 0;
         }
     }
+
+    EVP_PKEY_free(public_key);
 
     // Otherwise, key length is valid
     return 1;
@@ -270,7 +271,20 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
         return 1;
     }
 
+    X509_free(cert);
+    BIO_free_all(cert_bio);
+
     return 0;
+}
+
+// Free all certificate information stored
+void free_certificates(certificates_t *certificates) {
+    for (size_t i = 0; i < certificates->n; i++) {
+        free((char *)certificates->info[i].path);
+        free((char *)certificates->info[i].domain_url);
+    }
+    free(certificates->info);
+    free(certificates);
 }
 
 int main(int argc, char *argv[]) {
@@ -288,6 +302,8 @@ int main(int argc, char *argv[]) {
         result = verify_certificate(certificates->info[i].path, certificates->info[i].domain_url);
         printf("%d\n", result);
     }
+
+    free_certificates(certificates);
 
     exit(EXIT_SUCCESS);
 }

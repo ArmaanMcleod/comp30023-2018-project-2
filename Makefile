@@ -11,5 +11,5 @@ clean:
 	rm $(OBJ) $(EXE)
 
 scp:
-	scp *.c *.h *.pem Makefile ubuntu@115.146.93.189:comp30023/Assignment2
+	scp *.c *.pem Makefile ubuntu@115.146.93.189:comp30023/Assignment2
 	scp -r sample_certs ubuntu@115.146.93.189:comp30023/Assignment2
