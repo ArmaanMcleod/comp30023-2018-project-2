@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <fnmatch.h>
 
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -160,49 +161,13 @@ int validate_dates(X509 *cert) {
     return 0;
 }
 
-char **split_string(const char *string, size_t *size) {
-    size_t count = 0, curr_size = START_SIZE;
-    char **array = NULL;
-    const char *delim = ".";
-
-
-    // Allocate array of strings
-    array = malloc(curr_size * sizeof(*array));
-    if (!array) {
-        fprintf(stderr, "Cannot malloc() %zu items\n", curr_size);
-        exit(EXIT_FAILURE);
-    }
-
-    char *copy = strdup(string);
-    char *item = strtok(copy, delim);
-    while (item != NULL) {
-        if (curr_size == count) {
-            curr_size *= 2;
-            array = realloc(array, curr_size * sizeof(*array));
-            if (!array) {
-                fprintf(stderr, "Cannot realloc() %zu items\n", curr_size);
-                exit(EXIT_FAILURE);
-            }
-        }
-        array[count++] = strdup(item);
-        item = strtok(NULL, delim);
-    }
-
-    *size = count;
-
-    return array;
-}
-
-
 
 int validate_common_name(X509 *cert, const char *domain_url) {
-    int lastpos = -1;
+    int lastpos = -1, match;
     X509_NAME *subject_name = NULL;
     X509_NAME_ENTRY *entry = NULL;
     ASN1_STRING *entry_data = NULL;
     unsigned char *common_name;
-    char **commons = NULL, **domains = NULL;
-    size_t size_common, size_domain;
 
     // Get subject name
     subject_name = X509_get_subject_name(cert);
@@ -231,10 +196,10 @@ int validate_common_name(X509 *cert, const char *domain_url) {
     // print entry in utf-8 string format
     ASN1_STRING_to_UTF8(&common_name, entry_data);
 
-    commons = split_string((const char *)common_name, &size_common);
-    domains = split_string((const char *)domain_url, &size_domain);
-
-    // Check if url exists in common name entry
+    match = fnmatch((const char *)common_name, domain_url, 0);
+    if (match == 0) {
+        return 1;
+    }
 
     return 0;
 }
