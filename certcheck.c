@@ -118,7 +118,7 @@ certificates_t *read_input_csv(const char *csv_path) {
     return certificates;
 }
 
-// Check if date is valid 
+// Check if date is valid
 int check_date(ASN1_TIME *time_to) {
     int day, sec;
 
@@ -137,21 +137,112 @@ int check_date(ASN1_TIME *time_to) {
         return -1;
     }
 
+    // Same
     return 0;
 }
 
-void print_current_time() {
-    time_t mytime = time(NULL);
-    char * time_str = ctime(&mytime);
-    time_str[strlen(time_str)-1] = '\0';
-    printf("Current Time : %s\n", time_str);
+int validate_dates(X509 *cert) {
+    ASN1_TIME *not_before = NULL, *not_after = NULL;
+    int check_before, check_after;
+
+    // Get time periods
+    not_before = X509_get_notBefore(cert);
+    not_after = X509_get_notAfter(cert);
+
+    check_before = check_date(not_before);
+    check_after = check_date(not_after);
+
+    // check data ranges
+    if (check_before == -1 && check_after == 1) {
+        return 1;
+    }
+
+    return 0;
 }
 
-void verify_certificate(const char *cert_path) {
-    BIO *cert_bio = NULL;
+char **split_string(const char *string, size_t *size) {
+    size_t count = 0, curr_size = START_SIZE;
+    char **array = NULL;
+    const char *delim = ".";
+
+
+    // Allocate array of strings
+    array = malloc(curr_size * sizeof(*array));
+    if (!array) {
+        fprintf(stderr, "Cannot malloc() %zu items\n", curr_size);
+        exit(EXIT_FAILURE);
+    }
+
+    char *copy = strdup(string);
+    char *item = strtok(copy, delim);
+    while (item != NULL) {
+        if (curr_size == count) {
+            curr_size *= 2;
+            array = realloc(array, curr_size * sizeof(*array));
+            if (!array) {
+                fprintf(stderr, "Cannot realloc() %zu items\n", curr_size);
+                exit(EXIT_FAILURE);
+            }
+        }
+        array[count++] = strdup(item);
+        item = strtok(NULL, delim);
+    }
+
+    *size = count;
+
+    return array;
+}
+
+
+
+int validate_common_name(X509 *cert, const char *domain_url) {
+    int lastpos = -1;
+    X509_NAME *subject_name = NULL;
+    X509_NAME_ENTRY *entry = NULL;
+    ASN1_STRING *entry_data = NULL;
+    unsigned char *common_name;
+    char **commons = NULL, **domains = NULL;
+    size_t size_common, size_domain;
+
+    // Get subject name
+    subject_name = X509_get_subject_name(cert);
+    if (!subject_name) {
+        fprintf(stderr, "Subject name failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Get common name
+    lastpos = X509_NAME_get_index_by_NID(subject_name, NID_commonName, lastpos);
+    if (lastpos == -1) {
+        fprintf(stderr, "Common name not found\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Get entry
+    entry = X509_NAME_get_entry(subject_name, lastpos);
+    if (!entry) {
+        fprintf(stderr, "Index is invalid\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Get entry data
+    entry_data = X509_NAME_ENTRY_get_data(entry);
+
+    // print entry in utf-8 string format
+    ASN1_STRING_to_UTF8(&common_name, entry_data);
+
+    commons = split_string((const char *)common_name, &size_common);
+    domains = split_string((const char *)domain_url, &size_domain);
+
+    // Check if url exists in common name entry
+
+    return 0;
+}
+
+int verify_certificate(const char *cert_path, const char *url) {
+    BIO *cert_bio = NULL; //, *output = NULL;
     X509 *cert = NULL;
     int read_cert_bio;
-    ASN1_TIME *not_before, *not_after;
 
     // Initialise openSSL
     OpenSSL_add_all_algorithms();
@@ -175,30 +266,19 @@ void verify_certificate(const char *cert_path) {
         exit(EXIT_FAILURE);
     }
 
-    print_current_time();
+    if (validate_dates(cert) && validate_common_name(cert, url)) {
+        return 1;
+    }
 
-    // Get time periods
-    not_before = X509_get_notBefore(cert);
-    not_after = X509_get_notAfter(cert);
+    //output = BIO_new_fp(stdout, BIO_NOCLOSE);
+    //X509_print_ex(output, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 
-    BIO *output = BIO_new_fp(stdout, BIO_NOCLOSE);
-
-    printf("Not before: ");
-    ASN1_TIME_print(output, not_before);
-    printf("\n");
-    printf("Not before: ");
-    ASN1_TIME_print(output, not_after);
-    printf("\n");
-
-    // Not before
-    printf("%d\n", check_date(not_before));
-    printf("%d\n", check_date(not_after));
-
-    return;
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
     certificates_t *certificates = NULL;
+    int result;
 
     if (argc != 2) {
         fprintf(stderr, "Usage: ./certcheck [relative path to csv file]\n");
@@ -208,8 +288,8 @@ int main(int argc, char *argv[]) {
     certificates = read_input_csv(argv[1]);
 
     for (size_t i = 0; i < certificates->n; i++) {
-        verify_certificate(certificates->info[i].path);
-        printf("\n");
+        result = verify_certificate(certificates->info[i].path, certificates->info[i].url);
+        printf("%d\n", result);
     }
 
     exit(EXIT_SUCCESS);
