@@ -1,10 +1,11 @@
 CC     = gcc
-CFLAGS = -Wall -Wextra -lssl -lcrypto
+CFLAGS = -Wall -Wextra
+OFLAGS = -lssl -lcrypto
 OBJ    = certcheck.o
 EXE    = certcheck
 
 $(EXE): $(OBJ)
-	$(CC) $(CFLAGS) -o $(EXE) $(OBJ)
+	$(CC) $(CFLAGS) -o $(EXE) $(OBJ) $(OFLAGS)
 
 clean:
 	rm $(OBJ) $(EXE)

@@ -11,7 +11,8 @@
 #include <openssl/err.h>
 
 #define START_SIZE 5;
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 256
+#define LARGE_BUFFER_SIZE 1024
 
 typedef struct {
     const char *path;
@@ -116,39 +117,9 @@ certificates_t *read_input_csv(const char *csv_path) {
     return certificates;
 }
 
-char *get_certificate_path(const char *csv_path) {
-    char *path = strdup(csv_path);
-    char *path_to_certificates = NULL;
-    const char separator = '/';
-
-    // Split apath on last slash
-    char *split_at = strrchr(path, separator);
-
-    // If slash found, split and create current directory path
-    if(split_at != NULL) {
-        *split_at = '\0';
-
-         path_to_certificates = malloc(strlen(path) + 2);
-         memset(path_to_certificates, '\0', strlen(path) + 2);
-         strcpy(path_to_certificates, path);
-         strcat(path_to_certificates, "/");
-
-    // If not slash found, must be current directory
-    } else {
-        path_to_certificates = "./";
-    }
-
-    free(path);
-
-    return path_to_certificates;
-}
-
 void verify_certificate(const char *cert_path) {
     BIO *cert_bio = NULL;
     X509 *cert = NULL;
-    X509_NAME *cert_issuer = NULL;
-    X509_CINF *cert_info = NULL;
-    STACK_OF(X509_EXTENSION) * extension_list;
     int read_cert_bio;
 
     // Initialise openSSL
@@ -157,7 +128,7 @@ void verify_certificate(const char *cert_path) {
     ERR_load_crypto_strings();
 
     // Create BIO object to read certificate
-    cert_bio = BIO_NEW(BIO_s_file());
+    cert_bio = BIO_new(BIO_s_file());
 
     // Read certificate into BIO
     read_cert_bio = BIO_read_filename(cert_bio, cert_path);
@@ -167,13 +138,18 @@ void verify_certificate(const char *cert_path) {
     }
 
     // Load certificate into bio
+    cert = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
+    if (!cert) {
+        fprintf(stderr, "Error in loading certificate\n");
+        exit(EXIT_FAILURE);
+    }
 
+    
     return;
 }
 
 int main(int argc, char *argv[]) {
     certificates_t *certificates = NULL;
-    char *path_to_certificates = NULL;
 
     if (argc != 2) {
         fprintf(stderr, "Usage: ./certcheck [relative path to csv file]\n");
@@ -183,14 +159,9 @@ int main(int argc, char *argv[]) {
     certificates = read_input_csv(argv[1]);
 
     for (size_t i = 0; i < certificates->n; i++) {
-        printf("%s,%s\n",
-        certificates->info[i].path,
-        certificates->info[i].url);
+        verify_certificate(certificates->info[i].path);
+        printf("\n");
     }
-
-    path_to_certificates = get_certificate_path(argv[1]);
-
-    printf("%s\n", path_to_certificates);
 
     exit(EXIT_SUCCESS);
 }
