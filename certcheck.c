@@ -13,12 +13,12 @@
 #include <openssl/err.h>
 
 #define START_SIZE 5;
-#define BUFFER_SIZE 256
-#define LARGE_BUFFER_SIZE 1024
+#define BUFFER_SIZE 1024
+#define MIN_RSA_LENGTH 2048
 
 typedef struct {
     const char *path;
-    const char *url;
+    const char *domain_url;
 } certificate_t;
 
 typedef struct {
@@ -53,7 +53,7 @@ certificates_t *initialise_certificates(size_t num_certificates) {
 certificates_t *read_input_csv(const char *csv_path) {
     FILE *stream = NULL;
     char buffer[BUFFER_SIZE] = {0};
-    char *temp = NULL, *path = NULL, *url = NULL, *saveptr = NULL;
+    char *temp = NULL, *path = NULL, *domain_url = NULL, *saveptr = NULL;
     certificates_t *certificates = NULL;
     size_t slen, num_certificates = START_SIZE;
     const char *delim = " ,";
@@ -105,11 +105,11 @@ certificates_t *read_input_csv(const char *csv_path) {
             exit(EXIT_FAILURE);
         }
 
-        // Extract url
-        url = strtok_r(NULL, delim, &saveptr);
-        certificates->info[certificates->n].url = strdup(url);
-        if (!certificates->info[certificates->n].url) {
-            fprintf(stderr, "Error: strdup() can't parse url\n");
+        // Extract domain_url
+        domain_url = strtok_r(NULL, delim, &saveptr);
+        certificates->info[certificates->n].domain_url = strdup(domain_url);
+        if (!certificates->info[certificates->n].domain_url) {
+            fprintf(stderr, "Error: strdup() can't parse domain_url\n");
             exit(EXIT_FAILURE);
         }
 
@@ -142,6 +142,7 @@ int check_date(ASN1_TIME *time_to) {
     return 0;
 }
 
+// Validates not before and after dates in certificate
 int validate_dates(X509 *cert) {
     ASN1_TIME *not_before = NULL, *not_after = NULL;
     int check_before, check_after;
@@ -161,7 +162,7 @@ int validate_dates(X509 *cert) {
     return 0;
 }
 
-
+// Validates domain name in common name in certificate
 int validate_common_name(X509 *cert, const char *domain_url) {
     int lastpos = -1, match;
     X509_NAME *subject_name = NULL;
@@ -196,6 +197,7 @@ int validate_common_name(X509 *cert, const char *domain_url) {
     // print entry in utf-8 string format
     ASN1_STRING_to_UTF8(&common_name, entry_data);
 
+    // Match the string
     match = fnmatch((const char *)common_name, domain_url, 0);
     if (match == 0) {
         return 1;
@@ -204,7 +206,35 @@ int validate_common_name(X509 *cert, const char *domain_url) {
     return 0;
 }
 
-int verify_certificate(const char *cert_path, const char *url) {
+// Validates minimum RSA key length in certificate
+int validate_RSA_key_length(X509 *cert) {
+    EVP_PKEY *public_key = NULL;
+    int length;
+
+    // Get the public_key
+    public_key = X509_get_pubkey(cert);
+    if (!public_key) {
+        fprintf(stderr, "Error getting public key from certificate\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Verify that public key is RSA
+    if (public_key->type == EVP_PKEY_RSA) {
+
+        // Get length of key
+        length = EVP_PKEY_bits(public_key);
+
+        // If its less than minimum
+        if (length < MIN_RSA_LENGTH) {
+            return 0;
+        }
+    }
+
+    // Otherwise, key length is valid
+    return 1;
+}
+
+int verify_certificate(const char *cert_path, const char *domain_url) {
     BIO *cert_bio = NULL; //, *output = NULL;
     X509 *cert = NULL;
     int read_cert_bio;
@@ -231,12 +261,14 @@ int verify_certificate(const char *cert_path, const char *url) {
         exit(EXIT_FAILURE);
     }
 
-    if (validate_dates(cert) && validate_common_name(cert, url)) {
-        return 1;
-    }
-
     //output = BIO_new_fp(stdout, BIO_NOCLOSE);
     //X509_print_ex(output, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
+
+    if (validate_dates(cert) &&
+        validate_common_name(cert, domain_url) &&
+        validate_RSA_key_length(cert)) {
+        return 1;
+    }
 
     return 0;
 }
@@ -253,7 +285,7 @@ int main(int argc, char *argv[]) {
     certificates = read_input_csv(argv[1]);
 
     for (size_t i = 0; i < certificates->n; i++) {
-        result = verify_certificate(certificates->info[i].path, certificates->info[i].url);
+        result = verify_certificate(certificates->info[i].path, certificates->info[i].domain_url);
         printf("%d\n", result);
     }
 
