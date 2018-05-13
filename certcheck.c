@@ -117,10 +117,33 @@ certificates_t *read_input_csv(const char *csv_path) {
     return certificates;
 }
 
+int convert_ASN1TIME(ASN1_TIME *t, char* buf, size_t len) {
+	int rc;
+	BIO *b = BIO_new(BIO_s_mem());
+	rc = ASN1_TIME_print(b, t);
+
+	if (rc <= 0) {
+		fprintf(stderr, "ASN1_TIME_print failed or wrote no data.\n");
+		BIO_free(b);
+		exit(EXIT_FAILURE);
+	}
+
+	rc = BIO_gets(b, buf, len);
+	if (rc <= 0) {
+	    fprintf(stderr, "BIO_gets call failed to transfer contents to buf\n");
+		BIO_free(b);
+		exit(EXIT_FAILURE);
+	}
+
+	BIO_free(b);
+	return EXIT_SUCCESS;
+}
+
 void verify_certificate(const char *cert_path) {
     BIO *cert_bio = NULL;
     X509 *cert = NULL;
     int read_cert_bio;
+    //BIO *info = NULL;
 
     // Initialise openSSL
     OpenSSL_add_all_algorithms();
@@ -144,7 +167,23 @@ void verify_certificate(const char *cert_path) {
         exit(EXIT_FAILURE);
     }
 
-    
+    //info = BIO_new_fp(stdout,BIO_NOCLOSE);
+    //X509_print_ex(info, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
+
+    // Get time periods
+    ASN1_TIME *not_before = X509_get_notBefore(cert);
+    ASN1_TIME *not_after = X509_get_notAfter(cert);
+
+    char not_before_buffer[BUFFER_SIZE];
+    convert_ASN1TIME(not_before, not_before_buffer, BUFFER_SIZE);
+
+    printf("%s\n", not_before_buffer);
+
+    char not_after_buffer[BUFFER_SIZE];
+    convert_ASN1TIME(not_after, not_after_buffer, BUFFER_SIZE);
+
+    printf("%s\n", not_after_buffer);
+
     return;
 }
 
