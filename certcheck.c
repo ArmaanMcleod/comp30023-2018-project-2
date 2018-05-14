@@ -14,8 +14,8 @@
 #define MIN_RSA_LENGTH 2048
 
 typedef struct {
-    const char *path;
-    const char *domain_url;
+    char *path;
+    char *domain_url;
 } certificate_t;
 
 typedef struct {
@@ -235,8 +235,73 @@ int validate_RSA_key_length(X509 *cert) {
     return 1;
 }
 
+int validate_key_usage(X509 *cert) {
+    X509_CINF *cert_info = NULL;
+    STACK_OF(X509_EXTENSION) * ext_list = NULL;
+    size_t num_exts;
+    ASN1_OBJECT *obj = NULL;
+    X509_EXTENSION *ext = NULL;
+    BIO *ext_bio = NULL;
+    BUF_MEM *bptr = NULL;
+    char ext_buffer[BUFFER_SIZE] = {0};
+    char *buffer = NULL;
+
+    // Extract certificate extension
+    cert_info = cert->cert_info;
+    ext_list = cert_info->extensions;
+
+    // Get number of extension
+    if (ext_list) {
+        num_exts = sk_X509_EXTENSION_num(ext_list);
+    } else {
+        num_exts = 0;
+    }
+
+    // Loop over the extension;
+    for (size_t i = 0; i < num_exts; i++) {
+        // Get extension
+        ext = sk_X509_EXTENSION_value(ext_list, i);
+
+        // Get object
+        obj = X509_EXTENSION_get_object(ext);
+        memset(ext_buffer, '\0', sizeof ext_buffer);
+        OBJ_obj2txt(ext_buffer, BUFFER_SIZE, obj, 0);
+        printf("Extension: %s\n", ext_buffer);
+
+        // Get extension bio
+        ext_bio = BIO_new(BIO_s_mem());
+
+        // Validate extensions
+        if (!X509V3_EXT_print(ext_bio, ext, 0, 0)) {
+            fprintf(stderr, "Error reading in extensions\n");
+            continue;
+        }
+
+        // Insert pointer into bio and close it
+        BIO_get_mem_ptr(ext_bio, &bptr);
+        BIO_set_close(ext_bio, BIO_NOCLOSE);
+
+        // Allocate buffer for extension value
+        buffer = malloc(bptr->length + 1);
+        if (!buffer) {
+            fprintf(stderr, "Cannot malloc() %zu bytes for buffer\n", bptr->length);
+            exit(EXIT_FAILURE);
+        }
+
+        // Copy extension into buffer
+        memcpy(buffer, bptr->data, bptr->length);
+        buffer[bptr->length] = '\0';
+        printf("Extension value: %s\n", buffer);
+
+        free(buffer);
+        BIO_free_all(ext_bio);
+    }
+
+    return 0;
+}
+
 int verify_certificate(const char *cert_path, const char *domain_url) {
-    BIO *cert_bio = NULL; //, *output = NULL;
+    BIO *cert_bio = NULL, *out_bio = NULL;
     X509 *cert = NULL;
     int read_cert_bio;
 
@@ -247,6 +312,7 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
 
     // Create BIO object to read certificate
     cert_bio = BIO_new(BIO_s_file());
+    out_bio = BIO_new_fp(stdout, BIO_NOCLOSE);
 
     // Read certificate into BIO
     read_cert_bio = BIO_read_filename(cert_bio, cert_path);
@@ -258,11 +324,12 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
     // Load certificate into bio
     cert = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
     if (!cert) {
-        fprintf(stderr, "Error in loading certificate\n");
+        BIO_printf(out_bio, "Error in loading certificate\n");
         exit(EXIT_FAILURE);
     }
 
-    //output = BIO_new_fp(stdout, BIO_NOCLOSE);
+    printf("%d\n", validate_key_usage(cert));
+
     //X509_print_ex(output, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 
     if (validate_dates(cert) &&
@@ -273,6 +340,7 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
 
     X509_free(cert);
     BIO_free_all(cert_bio);
+    BIO_free_all(out_bio);
 
     return 0;
 }
@@ -280,8 +348,8 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
 // Free all certificate information stored
 void free_certificates(certificates_t *certificates) {
     for (size_t i = 0; i < certificates->n; i++) {
-        free((char *)certificates->info[i].path);
-        free((char *)certificates->info[i].domain_url);
+        free(certificates->info[i].path);
+        free(certificates->info[i].domain_url);
     }
     free(certificates->info);
     free(certificates);
@@ -300,7 +368,7 @@ int main(int argc, char *argv[]) {
 
     for (size_t i = 0; i < certificates->n; i++) {
         result = verify_certificate(certificates->info[i].path, certificates->info[i].domain_url);
-        printf("%d\n", result);
+        //printf("%d\n", result);
     }
 
     free_certificates(certificates);
