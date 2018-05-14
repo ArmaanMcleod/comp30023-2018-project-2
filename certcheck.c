@@ -112,6 +112,8 @@ certificates_t *read_input_csv(const char *csv_path) {
         }
 
         certificates->n++;
+
+        free(temp);
     }
 
     return certificates;
@@ -197,11 +199,12 @@ int validate_common_name(X509 *cert, const char *domain_url) {
 
     // Match the string
     match = fnmatch((const char *)common_name, domain_url, 0);
+    OPENSSL_free(common_name);
+
     if (match == 0) {
         return 1;
     }
 
-    OPENSSL_free(common_name);
 
     return 0;
 }
@@ -226,6 +229,7 @@ int validate_RSA_key_length(X509 *cert) {
 
         // If its less than minimum
         if (length < MIN_RSA_LENGTH) {
+            EVP_PKEY_free(public_key);
             return 0;
         }
     }
@@ -268,7 +272,7 @@ int validate_key_usage(X509 *cert) {
         obj = X509_EXTENSION_get_object(ext);
         memset(ext_buffer, '\0', sizeof ext_buffer);
         OBJ_obj2txt(ext_buffer, BUFFER_SIZE, obj, 0);
-        
+
         // Get extension bio
         ext_bio = BIO_new(BIO_s_mem());
 
@@ -293,6 +297,7 @@ int validate_key_usage(X509 *cert) {
         memcpy(buffer, bptr->data, bptr->length);
         buffer[bptr->length] = '\0';
 
+        // Checks constraints
         char *check_constraint = strstr(ext_buffer, "Basic Constraints");
         if (check_constraint != NULL) {
             char *constraint_value = strstr(buffer, "CA:FALSE");
@@ -301,6 +306,7 @@ int validate_key_usage(X509 *cert) {
             }
         }
 
+        // Checks key usages
         char *check_extended_key_usage = strstr(ext_buffer, "Extended Key Usage");
         if (check_extended_key_usage != NULL) {
             char *key_value = strstr(buffer, "TLS Web Server Authentication");
@@ -310,6 +316,7 @@ int validate_key_usage(X509 *cert) {
         }
 
         free(buffer);
+        BUF_MEM_free(bptr);
         BIO_free_all(ext_bio);
     }
 
@@ -354,6 +361,10 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
         validate_common_name(cert, domain_url) &&
         validate_RSA_key_length(cert) &&
         validate_key_usage(cert)) {
+
+        X509_free(cert);
+        BIO_free_all(cert_bio);
+        BIO_free_all(out_bio);
         return 1;
     }
 
