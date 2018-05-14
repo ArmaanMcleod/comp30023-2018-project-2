@@ -12,6 +12,7 @@
 #define START_SIZE 5;
 #define BUFFER_SIZE 1024
 #define MIN_RSA_LENGTH 2048
+#define MAX_VALID_EXTENSIONS 2
 
 typedef struct {
     char *path;
@@ -245,6 +246,7 @@ int validate_key_usage(X509 *cert) {
     BUF_MEM *bptr = NULL;
     char ext_buffer[BUFFER_SIZE] = {0};
     char *buffer = NULL;
+    int num_valid = 0;
 
     // Extract certificate extension
     cert_info = cert->cert_info;
@@ -266,8 +268,7 @@ int validate_key_usage(X509 *cert) {
         obj = X509_EXTENSION_get_object(ext);
         memset(ext_buffer, '\0', sizeof ext_buffer);
         OBJ_obj2txt(ext_buffer, BUFFER_SIZE, obj, 0);
-        printf("Extension: %s\n", ext_buffer);
-
+        
         // Get extension bio
         ext_bio = BIO_new(BIO_s_mem());
 
@@ -291,10 +292,29 @@ int validate_key_usage(X509 *cert) {
         // Copy extension into buffer
         memcpy(buffer, bptr->data, bptr->length);
         buffer[bptr->length] = '\0';
-        printf("Extension value: %s\n", buffer);
+
+        char *check_constraint = strstr(ext_buffer, "Basic Constraints");
+        if (check_constraint != NULL) {
+            char *constraint_value = strstr(buffer, "CA:FALSE");
+            if (constraint_value != NULL) {
+                num_valid++;
+            }
+        }
+
+        char *check_extended_key_usage = strstr(ext_buffer, "Extended Key Usage");
+        if (check_extended_key_usage != NULL) {
+            char *key_value = strstr(buffer, "TLS Web Server Authentication");
+            if (key_value != NULL) {
+                num_valid++;
+            }
+        }
 
         free(buffer);
         BIO_free_all(ext_bio);
+    }
+
+    if (num_valid == MAX_VALID_EXTENSIONS) {
+        return 1;
     }
 
     return 0;
@@ -328,13 +348,12 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
         exit(EXIT_FAILURE);
     }
 
-    printf("%d\n", validate_key_usage(cert));
-
     //X509_print_ex(output, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 
     if (validate_dates(cert) &&
         validate_common_name(cert, domain_url) &&
-        validate_RSA_key_length(cert)) {
+        validate_RSA_key_length(cert) &&
+        validate_key_usage(cert)) {
         return 1;
     }
 
@@ -368,7 +387,7 @@ int main(int argc, char *argv[]) {
 
     for (size_t i = 0; i < certificates->n; i++) {
         result = verify_certificate(certificates->info[i].path, certificates->info[i].domain_url);
-        //printf("%d\n", result);
+        printf("%d\n", result);
     }
 
     free_certificates(certificates);
