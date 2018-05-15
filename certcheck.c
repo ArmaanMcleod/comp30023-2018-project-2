@@ -14,16 +14,19 @@
 #define MIN_RSA_LENGTH 2048
 #define MAX_VALID_EXTENSIONS 2
 
+// Certificate information stored here
 typedef struct {
     char *path;
     char *url;
 } certificate_t;
 
+// Certifcate node
 typedef struct node {
     certificate_t *info;
     struct node *next;
 } node_t;
 
+// Certificate list
 typedef struct {
     node_t *head;
     node_t *tail;
@@ -259,6 +262,7 @@ int validate_RSA_key_length(X509 *cert) {
     return 1;
 }
 
+// Checks key usage and constraints
 int check_constraint_key_usage(const char ext_buffer[], const char *buffer) {
     char *constraint = NULL, *constraint_value = NULL;
     char *extended_key_usage = NULL, *key_value = NULL;
@@ -285,6 +289,7 @@ int check_constraint_key_usage(const char ext_buffer[], const char *buffer) {
     return num_valid;
 }
 
+// Validates key usages and constraints
 int validate_key_usage_constraints(const X509 *cert) {
     X509_CINF *cert_info = NULL;
     STACK_OF(X509_EXTENSION) * ext_list = NULL;
@@ -361,8 +366,7 @@ int validate_key_usage_constraints(const X509 *cert) {
     return 0;
 }
 
-
-
+// Validate alternate name extensions
 int validate_subject_alternative_extension(X509 *cert, const char *url) {
     STACK_OF(GENERAL_NAME) *san_names = NULL;
     size_t num_sans;
@@ -377,14 +381,19 @@ int validate_subject_alternative_extension(X509 *cert, const char *url) {
         return 0;
     }
 
+    // Get number of extensions
     num_sans = sk_GENERAL_NAME_num(san_names);
 
     for (size_t i = 0; i < num_sans; i++) {
+
+        // Get name of extension
         current_name = sk_GENERAL_NAME_value(san_names, i);
 
+        // Extract only DNS types
         if (current_name->type == GEN_DNS) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
+            // Match extension
             match = fnmatch((const char *)dns_name, url, FNM_NOESCAPE);
             if (match == 0) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
@@ -473,12 +482,14 @@ void write_results(const char *filename, list_t *certificates) {
     int result;
     node_t *curr = certificates->head;
 
+    // Open the file in write mode
     output = fopen(filename, "w");
     if (!output) {
         fprintf(stderr, "Cannot create output file\n");
         exit(EXIT_FAILURE);
     }
 
+    // Write to csv file
     while (curr) {
         result = verify_certificate(curr->info->path, curr->info->url);
         fprintf(output, "%s,%s,%d\n", curr->info->path,
@@ -503,8 +514,10 @@ int main(int argc, char *argv[]) {
     // Get certificates list
     certificates = read_input_csv(argv[1]);
 
+    // Write results
     write_results(output, certificates);
 
+    // Free all pointers
     free_certificates(certificates);
 
     exit(EXIT_SUCCESS);
