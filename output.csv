@@ -5,7 +5,7 @@ sample_certs/testfour.crt,www.oldsite.com,0
 sample_certs/testfive.crt,www.unimelb.com,0
 sample_certs/testsix.crt,www.codetest.com,0
 sample_certs/testseven.crt,www.example.com,1
-sample_certs/testeight.crt,www.comp30023.com,1
+sample_certs/testeight.crt,www.comp30023.com,0
 sample_certs/testnine.crt,www.certtest.com,1
 sample_certs/testten.crt,www.victoria.com,1
 sample_certs/testeleven.crt,freeca.com,0

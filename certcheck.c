@@ -202,16 +202,13 @@ int validate_common_name(X509 *cert, const char *domain_url) {
     // print entry in utf-8 string format
     ASN1_STRING_to_UTF8(&common_name, entry_data);
 
-
     // Match the string
-    match = fnmatch((const char *)common_name, domain_url, 0);
-    printf("common name: %s\n", common_name);
+    match = fnmatch((const char *)common_name, domain_url, FNM_NOESCAPE);
     OPENSSL_free(common_name);
 
     if (match == 0) {
         return 1;
     }
-
 
     return 0;
 }
@@ -339,20 +336,21 @@ int validate_key_usage_constraints(const X509 *cert) {
     return 0;
 }
 
-void validate_subject_alternative_extension(X509 *cert, const char *domain_url) {
+
+
+int validate_subject_alternative_extension(X509 *cert, const char *domain_url) {
     STACK_OF(GENERAL_NAME) *san_names = NULL;
     size_t num_sans;
     GENERAL_NAME *current_name = NULL;
     unsigned char *dns_name = NULL;
+    int match;
 
     // Extract names within SAN extension
     san_names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
 
     if (!san_names) {
-        return;
+        return -1;
     }
-
-    printf("domain: %s\n", domain_url);
 
     num_sans = sk_GENERAL_NAME_num(san_names);
 
@@ -362,11 +360,14 @@ void validate_subject_alternative_extension(X509 *cert, const char *domain_url) 
         if (current_name->type == GEN_DNS) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
-            printf("%s\n", dns_name);
+            match = fnmatch((const char *)dns_name, domain_url, FNM_NOESCAPE);
+            if (match == 0) {
+                return 1;
+            }
         }
     }
-    printf("\n");
 
+    return 0;
 }
 
 // Free certificate and bios
@@ -379,7 +380,7 @@ void free_certificate_contents(X509 *cert, BIO *cert_bio, BIO *out_bio) {
 int verify_certificate(const char *cert_path, const char *domain_url) {
     BIO *cert_bio = NULL, *out_bio = NULL;
     X509 *cert = NULL;
-    int read_cert_bio;
+    int read_cert_bio, extension;
 
     // Initialise openSSL
     OpenSSL_add_all_algorithms();
@@ -404,13 +405,16 @@ int verify_certificate(const char *cert_path, const char *domain_url) {
         exit(EXIT_FAILURE);
     }
 
-    validate_subject_alternative_extension(cert, domain_url);
-
     //X509_print_ex(out_bio, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
+
+    extension = validate_subject_alternative_extension(cert, domain_url);
+    if (extension == -1) {
+        extension = validate_common_name(cert, domain_url);
+    }
 
     // Validate certificate conditions
     if (validate_dates(cert) &&
-        validate_common_name(cert, domain_url) &&
+        extension &&
         validate_RSA_key_length(cert) &&
         validate_key_usage_constraints(cert)) {
 
@@ -445,7 +449,7 @@ void write_results(const char *filename, const certificates_t *certificates) {
     }
 
     for (size_t i = 0; i < certificates->n; i++) {
-        printf("%zu\n", i+1);
+        //printf("%zu\n", i+1);
         result = verify_certificate(certificates->info[i].path,
                                     certificates->info[i].domain_url);
 
