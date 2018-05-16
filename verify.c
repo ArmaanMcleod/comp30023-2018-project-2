@@ -19,8 +19,22 @@
 
 #define FMATCH FNM_CASEFOLD | FNM_NOESCAPE | FNM_PATHNAME | FNM_PERIOD
 
-enum State {NOT_FOUND, FOUND};
-enum Time {SOONER = -1, LATER = 1, SAME = 0};
+enum SAN_STATUS {
+    SAN_NOT_PRESENT = -1,
+    SAN_FOUND = 1,
+    SAN_NOT_FOUND = 0
+};
+
+enum TIME_STATUS {
+    TIME_SOONER = -1,
+    TIME_LATER = 1,
+    TIME_SAME = 0
+};
+
+enum KEY_LENGTH {
+    KEY_SHORTER,
+    KEY_CORRECT
+};
 
 // Check if date is valid
 static int check_date(const ASN1_TIME *time_to) {
@@ -34,15 +48,15 @@ static int check_date(const ASN1_TIME *time_to) {
 
     // Later
     if (day > 0 || sec > 0) {
-        return LATER;
+        return TIME_LATER;
 
     // Sooner
     } else if (day < 0 || sec < 0) {
-        return SOONER;
+        return TIME_SOONER;
     }
 
     // Same
-    return SAME;
+    return TIME_SAME;
 }
 
 // Validates not before and after dates in certificate
@@ -58,7 +72,7 @@ static int validate_dates(const X509 *cert) {
     check_after = check_date(not_after);
 
     // check data ranges
-    return check_before == SOONER && check_after == LATER;
+    return check_before == TIME_SOONER && check_after == TIME_LATER;
 }
 
 // Validates domain name in common name in certificate
@@ -125,14 +139,14 @@ static int validate_RSA_key_length(X509 *cert) {
         // If its less than minimum
         if (length < MIN_RSA_LENGTH) {
             EVP_PKEY_free(public_key);
-            return NOT_FOUND;
+            return KEY_SHORTER;
         }
     }
 
     EVP_PKEY_free(public_key);
 
     // Otherwise, key length is valid
-    return FOUND;
+    return KEY_CORRECT;
 }
 
 // Checks key usage and constraints
@@ -247,7 +261,7 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
     san_names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
     if (san_names == NULL) {
         sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-        return NOT_FOUND;
+        return SAN_NOT_PRESENT;
     }
 
     // Get number of extensions
@@ -266,7 +280,7 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
             match = fnmatch((const char *)dns_name, url, FMATCH);
             if (match == 0) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-                return FOUND;
+                return SAN_FOUND;
             }
 
         }
@@ -274,7 +288,7 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
 
     sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
 
-    return NOT_FOUND;
+    return SAN_NOT_FOUND;
 }
 
 // Veritify TLS certificate
@@ -311,11 +325,11 @@ int verify_certificate(const char *cert_path, const char *url) {
     //X509_print_ex(out_bio, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 
     // First try and get the common name
-    extension = validate_common_name(cert, url);
+    extension = validate_subject_alternative_extension(cert, url);
 
     // If no valid common name exist, check subject alternate names
-    if (!extension) {
-        extension = validate_subject_alternative_extension(cert, url);
+    if (extension == SAN_NOT_PRESENT) {
+        extension = validate_common_name(cert, url);
     }
 
     // Validate certificate conditions
