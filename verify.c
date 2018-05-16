@@ -20,9 +20,8 @@
 #define FMATCH FNM_CASEFOLD | FNM_NOESCAPE | FNM_PATHNAME | FNM_PERIOD
 
 enum SAN_STATUS {
-    SAN_NOT_PRESENT = -1,
-    SAN_FOUND = 1,
-    SAN_NOT_FOUND = 0
+    SAN_NOT_FOUND,
+    SAN_FOUND,
 };
 
 enum TIME_STATUS {
@@ -261,7 +260,7 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
     san_names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
     if (san_names == NULL) {
         sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-        return SAN_NOT_PRESENT;
+        return SAN_NOT_FOUND;
     }
 
     // Get number of extensions
@@ -275,6 +274,8 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
         // Extract only DNS types
         if (current_name->type == GEN_DNS) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
+
+            printf("%s\n", dns_name);
 
             // Match extension
             match = fnmatch((const char *)dns_name, url, FMATCH);
@@ -325,11 +326,11 @@ int verify_certificate(const char *cert_path, const char *url) {
     //X509_print_ex(out_bio, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 
     // First try and get the common name
-    extension = validate_subject_alternative_extension(cert, url);
+    extension = validate_common_name(cert, url);
 
     // If no valid common name exist, check subject alternate names
-    if (extension == SAN_NOT_PRESENT) {
-        extension = validate_common_name(cert, url);
+    if (!extension) {
+        extension = validate_subject_alternative_extension(cert, url);
     }
 
     // Validate certificate conditions

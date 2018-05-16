@@ -9,6 +9,9 @@ $(EXE): $(OBJ)
 clean:
 	rm $(OBJ) $(EXE)
 
+run:
+	./certcheck ./sample_certs/sample_input.csv
+
 scp:
 	scp *.c *.h *.pem *.sh Makefile ubuntu@115.146.93.189:comp30023/Assignment2
 	scp -r sample_certs ubuntu@115.146.93.189:comp30023/Assignment2
