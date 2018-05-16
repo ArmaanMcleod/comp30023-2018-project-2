@@ -1,6 +1,6 @@
 CC     = gcc
 CFLAGS = -Wall -Wextra -lssl -lcrypto
-OBJ    = certcheck.o
+OBJ    = certcheck.o certlist.o filehandle.o verify.o
 EXE    = certcheck
 
 $(EXE): $(OBJ)
