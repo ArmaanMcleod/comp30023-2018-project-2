@@ -1,14 +1,27 @@
 #!/bin/bash
 
-echo "Sample Text"
+printf "LOCAL TESTS\n"
+printf "%0.s-" {1..80}
+printf "\n"
+chmod +x test.sh
+./test.sh
 
-make
-valgrind --leak-check=full ./certcheck ./sample_certs/sample_input.csv
-make clean
+printf "\nRESULT\n"
+printf "%0.s-" {1..80}
+printf "\n"
+cat result
+printf "%0.s-" {1..80}
+printf "\n"
 
-if diff ./output.csv ./sample_certs/sample_output.csv
-then
-    echo "Output Correct"
-else
-    echo "Output Incorrect"
-fi
+printf "\nNECTAR TESTS\n"
+printf "%0.s-" {1..80}
+printf "\n"
+make scp
+ssh -t uni "cd comp30023/Assignment2 && chmod +x test.sh && ./test.sh"
+
+printf "\nRESULT\n"
+printf "%0.s-" {1..80}
+printf "\n"
+cat result
+printf "%0.s-" {1..80}
+printf "\n"
