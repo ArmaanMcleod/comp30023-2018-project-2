@@ -10,9 +10,9 @@ green=$(tput setaf 2)
 red=$(tput setaf 1)
 normal=$(tput sgr0)
 
-printf "%0.s-" {1..115}
+printf "%0.s-" {1..120}
 printf "\nRESULT\n"
-printf "%0.s-" {1..115}
+printf "%0.s-" {1..120}
 printf "\n"
 
 # check output matches sample output
@@ -25,5 +25,5 @@ else
     printf "${green}PASSED\n"
 fi
 
-printf "%0.s-" {1..115}
+printf "%0.s-" {1..120}
 printf "\n"
