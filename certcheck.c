@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +15,9 @@
 #define BUFFER_SIZE 1024
 #define MIN_RSA_LENGTH 2048
 #define MAX_VALID_EXTENSIONS 2
+
+enum State {NOT_FOUND, FOUND};
+enum Time {SOONER = -1, LATER = 1, SAME = 0};
 
 // Certificate information stored here
 typedef struct {
@@ -38,7 +43,8 @@ list_t *initialise_certificates() {
 
     // Create certificates structure
     certificates = malloc(sizeof(*certificates));
-    if (!certificates) {
+    if (certificates == NULL) {
+        free(certificates);
         fprintf(stderr, "Error: cannot malloc() linked list\n");
         exit(EXIT_FAILURE);
     }
@@ -52,11 +58,12 @@ list_t *initialise_certificates() {
 
 // Add certificate to end of linked list
 void add_certificate(list_t *certificates, certificate_t *info) {
-    node_t *newnode;
+    node_t *newnode = NULL;
 
     // Create a new node
     newnode = malloc(sizeof(*newnode));
-    if (!newnode) {
+    if (newnode == NULL) {
+        free(newnode);
         fprintf(stderr, "Cannot malloc() new node\n");
         exit(EXIT_FAILURE);
     }
@@ -66,7 +73,7 @@ void add_certificate(list_t *certificates, certificate_t *info) {
     newnode->next = NULL;
 
     // If end is empty, add to head
-    if (!certificates->tail) {
+    if (certificates->tail == NULL) {
         certificates->head = newnode;
         certificates->tail = newnode;
 
@@ -91,7 +98,7 @@ list_t *read_input_csv(const char *csv_path) {
 
     // Open csv file
     stream = fopen(csv_path, "r");
-    if (!stream) {
+    if (stream == NULL) {
         fprintf(stderr, "Failed to open file\n");
         exit(EXIT_FAILURE);
     }
@@ -108,14 +115,16 @@ list_t *read_input_csv(const char *csv_path) {
 
         // Create temporary node
         info = malloc(sizeof(*info));
-        if (!info) {
+        if (info == NULL) {
+            free(info);
             fprintf(stderr, "Cannot malloc() node for certificate info\n");
             exit(EXIT_FAILURE);
         }
 
         // copy buffer
         temp = strdup(buffer);
-        if (!temp) {
+        if (temp == NULL) {
+            free(temp);
             fprintf(stderr, "Error: strdup() failed to copy buffer\n");
             exit(EXIT_FAILURE);
         }
@@ -123,7 +132,8 @@ list_t *read_input_csv(const char *csv_path) {
         // Extract path
         path = strtok_r(temp, delim, &saveptr);
         info->path = strdup(path);
-        if (!info->path) {
+        if (info->path == NULL) {
+            free(info->path);
             fprintf(stderr, "Error: stdup() can't parse path\n");
             exit(EXIT_FAILURE);
         }
@@ -131,7 +141,8 @@ list_t *read_input_csv(const char *csv_path) {
         // Extract url
         url = strtok_r(NULL, delim, &saveptr);
         info->url = strdup(url);
-        if (!info->url) {
+        if (info->url == NULL) {
+            free(info->url);
             fprintf(stderr, "Error: strdup() can't parse url\n");
             exit(EXIT_FAILURE);
         }
@@ -158,15 +169,15 @@ int check_date(const ASN1_TIME *time_to) {
 
     // Later
     if (day > 0 || sec > 0) {
-        return 1;
+        return LATER;
 
     // Sooner
     } else if (day < 0 || sec < 0) {
-        return -1;
+        return SOONER;
     }
 
     // Same
-    return 0;
+    return SAME;
 }
 
 // Validates not before and after dates in certificate
@@ -182,11 +193,7 @@ int validate_dates(const X509 *cert) {
     check_after = check_date(not_after);
 
     // check data ranges
-    if (check_before == -1 && check_after == 1) {
-        return 1;
-    }
-
-    return 0;
+    return check_before == SOONER && check_after == LATER;
 }
 
 // Validates domain name in common name in certificate
@@ -199,7 +206,7 @@ int validate_common_name(X509 *cert, const char *url) {
 
     // Get subject name
     subject_name = X509_get_subject_name(cert);
-    if (!subject_name) {
+    if (subject_name == NULL) {
         fprintf(stderr, "Subject name failed\n");
         exit(EXIT_FAILURE);
     }
@@ -213,7 +220,7 @@ int validate_common_name(X509 *cert, const char *url) {
 
     // Get entry
     entry = X509_NAME_get_entry(subject_name, lastpos);
-    if (!entry) {
+    if (entry == NULL) {
         fprintf(stderr, "Index is invalid\n");
         exit(EXIT_FAILURE);
     }
@@ -225,7 +232,7 @@ int validate_common_name(X509 *cert, const char *url) {
     ASN1_STRING_to_UTF8(&common_name, entry_data);
 
     // Match the string
-    match = fnmatch((const char *)common_name, url, FNM_NOESCAPE);
+    match = fnmatch((const char *)common_name, url, FNM_CASEFOLD);
     OPENSSL_free(common_name);
 
     return !match;
@@ -238,7 +245,7 @@ int validate_RSA_key_length(X509 *cert) {
 
     // Get the public_key
     public_key = X509_get_pubkey(cert);
-    if (!public_key) {
+    if (public_key == NULL) {
         fprintf(stderr, "Error getting public key from certificate\n");
         exit(EXIT_FAILURE);
     }
@@ -252,14 +259,14 @@ int validate_RSA_key_length(X509 *cert) {
         // If its less than minimum
         if (length < MIN_RSA_LENGTH) {
             EVP_PKEY_free(public_key);
-            return 0;
+            return NOT_FOUND;
         }
     }
 
     EVP_PKEY_free(public_key);
 
     // Otherwise, key length is valid
-    return 1;
+    return FOUND;
 }
 
 // Checks key usage and constraints
@@ -307,7 +314,7 @@ int validate_key_usage_constraints(const X509 *cert) {
     ext_list = cert_info->extensions;
 
     // Get number of extension
-    if (ext_list) {
+    if (ext_list != NULL) {
         num_exts = sk_X509_EXTENSION_num(ext_list);
     } else {
         num_exts = 0;
@@ -339,7 +346,8 @@ int validate_key_usage_constraints(const X509 *cert) {
 
         // Allocate buffer for extension value
         buffer = malloc(bptr->length + 1);
-        if (!buffer) {
+        if (buffer == NULL) {
+            free(buffer);
             fprintf(stderr, "Cannot malloc() %zu bytes for buffer\n",
                              bptr->length);
             exit(EXIT_FAILURE);
@@ -358,12 +366,7 @@ int validate_key_usage_constraints(const X509 *cert) {
         BIO_free_all(ext_bio);
     }
 
-    // Check number of valid checks
-    if (num_valid == MAX_VALID_EXTENSIONS) {
-        return 1;
-    }
-
-    return 0;
+    return num_valid == MAX_VALID_EXTENSIONS;
 }
 
 // Validate alternate name extensions
@@ -376,9 +379,9 @@ int validate_subject_alternative_extension(X509 *cert, const char *url) {
 
     // Extract names within SAN extension
     san_names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
-    if (!san_names) {
+    if (san_names == NULL) {
         sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-        return 0;
+        return NOT_FOUND;
     }
 
     // Get number of extensions
@@ -394,10 +397,10 @@ int validate_subject_alternative_extension(X509 *cert, const char *url) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch((const char *)dns_name, url, FNM_NOESCAPE);
+            match = fnmatch((const char *)dns_name, url, FNM_CASEFOLD);
             if (match == 0) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-                return 1;
+                return FOUND;
             }
 
         }
@@ -405,7 +408,7 @@ int validate_subject_alternative_extension(X509 *cert, const char *url) {
 
     sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
 
-    return 0;
+    return NOT_FOUND;
 }
 
 // Veritify TLS certificate
@@ -426,25 +429,27 @@ int verify_certificate(const char *cert_path, const char *url) {
     // Read certificate into BIO
     read_cert_bio = BIO_read_filename(cert_bio, cert_path);
     if (!read_cert_bio) {
+        BIO_free_all(cert_bio);
         fprintf(stderr, "Error in reading cert BIO filename\n");
         exit(EXIT_FAILURE);
     }
 
     // Load certificate into bio
     cert = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
-    if (!cert) {
+    if (cert == NULL) {
+        X509_free(cert);
         BIO_printf(out_bio, "Error in loading certificate\n");
         exit(EXIT_FAILURE);
     }
 
     //X509_print_ex(out_bio, cert, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 
-    // First try and get a subject alternate name
-    extension = validate_subject_alternative_extension(cert, url);
+    // First try and get the common name
+    extension = validate_common_name(cert, url);
 
-    // If none exist or are invalid, get the common name
+    // If no valid common name exist, check subject alternate names
     if (!extension) {
-        extension = validate_common_name(cert, url);
+        extension = validate_subject_alternative_extension(cert, url);
     }
 
     // Validate certificate conditions
@@ -465,7 +470,7 @@ int verify_certificate(const char *cert_path, const char *url) {
 void free_certificates(list_t *certificates) {
     node_t *curr = certificates->head, *prev = NULL;
 
-    while (curr) {
+    while (curr != NULL) {
         prev = curr;
         curr = curr->next;
         free(prev->info->path);
@@ -484,13 +489,13 @@ void write_results(const char *filename, list_t *certificates) {
 
     // Open the file in write mode
     output = fopen(filename, "w");
-    if (!output) {
+    if (output == NULL) {
         fprintf(stderr, "Cannot create output file\n");
         exit(EXIT_FAILURE);
     }
 
     // Write to csv file
-    while (curr) {
+    while (curr != NULL) {
         result = verify_certificate(curr->info->path, curr->info->url);
         fprintf(output, "%s,%s,%d\n", curr->info->path,
                                       curr->info->url, result);
