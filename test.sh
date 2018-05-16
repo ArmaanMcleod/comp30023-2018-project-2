@@ -2,7 +2,7 @@
 
 # make the project
 make
-valgrind --leak-check=full ./certcheck ./sample_certs/sample_input.csv
+./certcheck ./sample_certs/sample_input.csv
 
 # check output matches sample output
 out1="./output.csv"
