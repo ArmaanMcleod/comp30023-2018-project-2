@@ -10,7 +10,7 @@ clean:
 	rm $(OBJ) $(EXE)
 
 run:
-	./certcheck ./sample_certs/sample_input.csv
+	valgrind --leak-check=full ./certcheck ./sample_certs/sample_input.csv
 
 copy:
 	rsync -ru *.c *.h *.pem *.sh Makefile ubuntu@115.146.93.189:comp30023/Assignment2
