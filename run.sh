@@ -24,5 +24,8 @@ printf "\n${yellow}COPYING AND RUNNING FILES${normal}\n"
 printf "${yellow}INSTALL COLORDIFF${normal}\n"
 printf "%0.s-" {1..120}
 printf "\n"
-make scp
-ssh -t uni "cd comp30023/Assignment2 && chmod +x ./test.sh && sudo apt install colordiff && ./test.sh"
+make copy
+ssh -t uni "cd comp30023/Assignment2 &&
+            chmod +x ./test.sh &&
+            sudo apt install colordiff &&
+            ./test.sh"

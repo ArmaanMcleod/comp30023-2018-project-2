@@ -12,9 +12,9 @@ clean:
 run:
 	./certcheck ./sample_certs/sample_input.csv
 
-scp:
-	scp *.c *.h *.pem *.sh Makefile ubuntu@115.146.93.189:comp30023/Assignment2
-	scp -r sample_certs ubuntu@115.146.93.189:comp30023/Assignment2
+copy:
+	rsync -ru *.c *.h *.pem *.sh Makefile ubuntu@115.146.93.189:comp30023/Assignment2
+	rsync -ru -r sample_certs ubuntu@115.146.93.189:comp30023/Assignment2
 
 test:
 	chmod +x ./run.sh
