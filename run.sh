@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Testing..."
+echo "Sample Text"
 
 make
 valgrind --leak-check=full ./certcheck ./sample_certs/sample_input.csv

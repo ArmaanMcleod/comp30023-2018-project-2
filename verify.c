@@ -13,6 +13,15 @@
 
 #include "verify.h"
 
+#define MIN_RSA_LENGTH 2048
+#define MAX_VALID_EXTENSIONS 2
+#define EXT_BUFFER_SIZE 1024
+
+#define FMATCH FNM_CASEFOLD | FNM_NOESCAPE | FNM_PATHNAME | FNM_PERIOD
+
+enum State {NOT_FOUND, FOUND};
+enum Time {SOONER = -1, LATER = 1, SAME = 0};
+
 // Check if date is valid
 static int check_date(const ASN1_TIME *time_to) {
     int day, sec;
@@ -89,7 +98,7 @@ static int validate_common_name(X509 *cert, const char *url) {
     ASN1_STRING_to_UTF8(&common_name, entry_data);
 
     // Match the string
-    match = fnmatch((const char *)common_name, url, FNM_CASEFOLD);
+    match = fnmatch((const char *)common_name, url, FMATCH);
     OPENSSL_free(common_name);
 
     return !match;
@@ -162,7 +171,7 @@ static int validate_key_usage_constraints(const X509 *cert) {
     X509_EXTENSION *ext = NULL;
     BIO *ext_bio = NULL;
     BUF_MEM *bptr = NULL;
-    char ext_buffer[BUFFER_SIZE] = {0};
+    char ext_buffer[EXT_BUFFER_SIZE] = {0};
     char *buffer = NULL;
     int num_valid = 0;
 
@@ -185,7 +194,7 @@ static int validate_key_usage_constraints(const X509 *cert) {
         // Get object
         obj = X509_EXTENSION_get_object(ext);
         memset(ext_buffer, '\0', sizeof ext_buffer);
-        OBJ_obj2txt(ext_buffer, BUFFER_SIZE, obj, 0);
+        OBJ_obj2txt(ext_buffer, EXT_BUFFER_SIZE, obj, 0);
 
         // Get extension bio
         ext_bio = BIO_new(BIO_s_mem());
@@ -254,7 +263,7 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch((const char *)dns_name, url, FNM_CASEFOLD);
+            match = fnmatch((const char *)dns_name, url, FMATCH);
             if (match == 0) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return FOUND;
