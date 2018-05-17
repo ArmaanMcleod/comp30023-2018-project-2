@@ -88,7 +88,7 @@ static int validate_common_name(X509 *cert, const char *url) {
     common_name = ASN1_STRING_data(entry_data);
 
     // Match the string
-    match = fnmatch((const char *)common_name, url, FMATCH);
+    match = fnmatch((const char *)common_name, url, FNM_CASEFOLD);
 
     return !match;
 }
@@ -124,6 +124,7 @@ static int validate_RSA_key_length(X509 *cert) {
     return KEY_CORRECT;
 }
 
+// Checks extensions exist in list
 static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
                               const char *extension_name,
                               const char *extension_value) {
@@ -136,11 +137,7 @@ static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
     size_t num_exts;
 
     // Get number of extension
-    if (ext_list != NULL) {
-        num_exts = sk_X509_EXTENSION_num(ext_list);
-    } else {
-        num_exts = 0;
-    }
+    num_exts = (ext_list != NULL) ? sk_X509_EXTENSION_num(ext_list) : 0;
 
     // Go over the extensions
     for (size_t i = 0; i < num_exts; i++) {
@@ -235,7 +232,7 @@ static int validate_subject_alternative_name(X509 *cert, const char *url) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch((const char *)dns_name, url, FMATCH);
+            match = fnmatch((const char *)dns_name, url, FNM_CASEFOLD);
             if (match == 0) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return SAN_FOUND;

@@ -17,8 +17,6 @@
 #define MIN_RSA_LENGTH 2048
 #define EXT_BUFFER_SIZE 1024
 
-#define FMATCH FNM_CASEFOLD
-
 typedef enum {SAN_NOT_PRESENT = -1, SAN_NOT_FOUND = 0, SAN_FOUND = 1} san_t;
 typedef enum EXT {EXTENSION_NOT_FOUND, EXTENSION_FOUND} extension_t;
 typedef enum {TIME_SOONER = -1, TIME_LATER = 1, TIME_SAME = 0} time_type_t;

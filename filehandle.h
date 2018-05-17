@@ -1,10 +1,6 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "certlist.h"
 
 #define BUFFER_SIZE 1024

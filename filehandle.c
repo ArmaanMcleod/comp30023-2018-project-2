@@ -23,7 +23,6 @@ list_t *read_input_csv(const char *csv_path) {
 
     // Read through each line
     while (fgets(buffer, sizeof buffer, stream) != NULL) {
-
         slen = strlen(buffer);
 
         // Remove trailing newline character
@@ -65,6 +64,7 @@ list_t *read_input_csv(const char *csv_path) {
             exit(EXIT_FAILURE);
         }
 
+        // Add certificate to list
         add_certificate(certificates, info);
 
         free(temp);
