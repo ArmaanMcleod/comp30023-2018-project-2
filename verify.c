@@ -20,8 +20,9 @@
 #define FMATCH FNM_CASEFOLD | FNM_NOESCAPE | FNM_PATHNAME | FNM_PERIOD
 
 enum SAN_STATUS {
-    SAN_NOT_FOUND,
-    SAN_FOUND,
+    SAN_NOT_PRESENT = -1,
+    SAN_NOT_FOUND = 0,
+    SAN_FOUND = 1
 };
 
 enum TIME_STATUS {
@@ -80,7 +81,7 @@ static int validate_common_name(X509 *cert, const char *url) {
     X509_NAME *subject_name = NULL;
     X509_NAME_ENTRY *entry = NULL;
     ASN1_STRING *entry_data = NULL;
-    unsigned char *common_name;
+    unsigned char *common_name = NULL;
 
     // Get subject name
     subject_name = X509_get_subject_name(cert);
@@ -106,13 +107,16 @@ static int validate_common_name(X509 *cert, const char *url) {
 
     // Get entry data
     entry_data = X509_NAME_ENTRY_get_data(entry);
+    if (entry_data == NULL) {
+        fprintf(stderr, "Entry is invalid\n");
+        exit(EXIT_FAILURE);
+    }
 
     // print entry in utf-8 string format
-    ASN1_STRING_to_UTF8(&common_name, entry_data);
+    common_name = ASN1_STRING_data(entry_data);
 
     // Match the string
     match = fnmatch((const char *)common_name, url, FMATCH);
-    OPENSSL_free(common_name);
 
     return !match;
 }
@@ -260,7 +264,7 @@ static int validate_subject_alternative_extension(X509 *cert, const char *url) {
     san_names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
     if (san_names == NULL) {
         sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
-        return SAN_NOT_FOUND;
+        return SAN_NOT_PRESENT;
     }
 
     // Get number of extensions
@@ -331,6 +335,13 @@ int verify_certificate(const char *cert_path, const char *url) {
     // If no valid common name exist, check subject alternate names
     if (!extension) {
         extension = validate_subject_alternative_extension(cert, url);
+
+        // If subject alternate name not found or not present
+        if (extension == SAN_NOT_FOUND || extension == SAN_NOT_PRESENT) {
+            extension = 0;
+        } else {
+            extension = 1;
+        }
     }
 
     // Validate certificate conditions

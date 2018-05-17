@@ -10,6 +10,9 @@ clean:
 	rm $(OBJ) $(EXE)
 
 run:
+	./certcheck ./sample_certs/sample_input.csv
+
+memory:
 	valgrind --leak-check=full ./certcheck ./sample_certs/sample_input.csv
 
 copy:
