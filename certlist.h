@@ -1,6 +1,9 @@
 #ifndef CERT_H
 #define CERT_H
 
+#include <stdio.h>
+#include <stdlib.h>
+
 // Certificate information stored here
 typedef struct {
     char *path;

@@ -22,6 +22,3 @@ copy:
 test:
 	chmod +x ./run.sh
 	./run.sh
-
-vpn:
-	gnome-terminal -- sudo openconnect -u dhaliwala https://remote.unimelb.edu.au/student

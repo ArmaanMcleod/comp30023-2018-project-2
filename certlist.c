@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "certlist.h"
 
 // Create linked list of certificates

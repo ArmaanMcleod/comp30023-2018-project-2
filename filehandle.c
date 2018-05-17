@@ -1,11 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "filehandle.h"
 #include "verify.h"
-
-#define BUFFER_SIZE 1024
 
 // Reads certificate files into linked list
 list_t *read_input_csv(const char *csv_path) {
