@@ -3,7 +3,7 @@
 const char *CONSTRAINT_NAME = "Basic Constraints";
 const char *CONSTRAINT_VALUE = "CA:FALSE";
 const char *EXTENDED_KEY_NAME = "Extended Key Usage";
-const char *EXTENDED_KEY_VALUE = "TLS Web Server Authentication";
+const char *KEY_VALUE = "TLS Web Server Authentication";
 
 // Check if date is valid
 static int check_date(const ASN1_TIME *time_to) {
@@ -66,8 +66,7 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     lastpos = X509_NAME_get_index_by_NID(subject_name, NID_commonName,
                                          lastpos);
     if (lastpos == -1) {
-        fprintf(stderr, "Common name not found\n");
-        exit(EXIT_FAILURE);
+        return CN_NOT_PRESENT;
     }
 
     // Get entry
@@ -90,7 +89,7 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     // Validate host name
     match = fnmatch(common_name, hostname, FNM_CASEFOLD);
 
-    return (match == 0) ? HOST_FOUND : HOST_NOT_FOUND;
+    return (match == 0) ? CN_FOUND : CN_NOT_FOUND;
 }
 
 // Validates minimum RSA key length in certificate
@@ -137,7 +136,8 @@ static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
     size_t num_exts;
 
     // Get number of extension
-    num_exts = (ext_list != NULL) ? sk_X509_EXTENSION_num(ext_list) : 0;
+    num_exts = (ext_list != NULL) ? sk_X509_EXTENSION_num(ext_list)
+                                    : EXTENSION_NOT_PRESENT;
 
     // Go over the extensions
     for (size_t i = 0; i < num_exts; i++) {
@@ -196,13 +196,20 @@ static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
 static int validate_key_usage_constraints(const X509 *cert) {
     X509_CINF *cert_info = NULL;
     STACK_OF(X509_EXTENSION) *ext_list = NULL;
+    int check_constraint, check_extended;
 
     // Extract certificate extension
     cert_info = cert->cert_info;
     ext_list = cert_info->extensions;
 
-    return validate_extension(ext_list, CONSTRAINT_NAME, CONSTRAINT_VALUE) &&
-           validate_extension(ext_list, EXTENDED_KEY_NAME, EXTENDED_KEY_VALUE);
+    check_constraint = validate_extension(ext_list, CONSTRAINT_NAME,
+                                          CONSTRAINT_VALUE);
+
+    check_extended = validate_extension(ext_list, EXTENDED_KEY_NAME,
+                                        KEY_VALUE);
+
+    return check_constraint == EXTENSION_FOUND &&
+           check_extended == EXTENSION_FOUND;
 }
 
 // Validate alternate name extensions
@@ -282,7 +289,7 @@ int verify_certificate(const char *cert_path, const char *hostname) {
     extension = validate_common_name(cert, hostname);
 
     // If no valid common name exist, check subject alternate names
-    if (!extension) {
+    if (extension == CN_NOT_FOUND || CN_NOT_FOUND) {
         extension = validate_subject_alternative_name(cert, hostname);
 
         // If subject alternate name not found or not present, SAN invalid

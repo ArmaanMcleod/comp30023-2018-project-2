@@ -12,6 +12,7 @@ clean:
 run:
 	./certcheck ./sample_certs/sample_input.csv
 	./testscript.sh
+
 memory:
 	valgrind --leak-check=full ./certcheck ./sample_certs/sample_input.csv
 
