@@ -1,5 +1,4 @@
 #include "verify.h"
-#include "wildcard.h"
 
 const char *CONSTRAINT_NAME = "Basic Constraints";
 const char *CONSTRAINT_VALUE = "CA:FALSE";
@@ -54,7 +53,7 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     X509_NAME *subject_name = NULL;
     X509_NAME_ENTRY *entry = NULL;
     ASN1_STRING *entry_data = NULL;
-    unsigned char *common_name = NULL;
+    char *common_name = NULL;
 
     // Get subject name
     subject_name = X509_get_subject_name(cert);
@@ -86,10 +85,10 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     }
 
     // Print entry in string format
-    common_name = ASN1_STRING_data(entry_data);
+    common_name = (char *)ASN1_STRING_data(entry_data);
 
     // Validate host name
-    match = fnmatch((const char*)common_name, hostname, FNM_CASEFOLD);
+    match = fnmatch(common_name, hostname, FNM_CASEFOLD);
 
     return (match == 0) ? HOST_FOUND : HOST_NOT_FOUND;
 }
@@ -211,7 +210,7 @@ static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
     STACK_OF(GENERAL_NAME) *san_names = NULL;
     size_t num_sans;
     GENERAL_NAME *current_name = NULL;
-    unsigned char *dns_name = NULL;
+    char *dns_name = NULL;
     int match;
 
     // Extract names within SAN extension
@@ -231,10 +230,10 @@ static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
 
         // Extract only DNS types
         if (current_name->type == GEN_DNS) {
-            dns_name = ASN1_STRING_data(current_name->d.dNSName);
+            dns_name = (char *)ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch((const char*)dns_name, hostname, FNM_CASEFOLD);
+            match = fnmatch(dns_name, hostname, FNM_CASEFOLD);
             if (!match) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return SAN_FOUND;
