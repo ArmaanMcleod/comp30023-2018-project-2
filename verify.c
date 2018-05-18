@@ -55,7 +55,6 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     X509_NAME_ENTRY *entry = NULL;
     ASN1_STRING *entry_data = NULL;
     unsigned char *common_name = NULL;
-    char *common_copy = NULL, *host_copy = NULL;
 
     // Get subject name
     subject_name = X509_get_subject_name(cert);
@@ -90,9 +89,9 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     common_name = ASN1_STRING_data(entry_data);
 
     // Validate host name
-    match = validate_hostname((const char*)common_name, hostname);
+    match = fnmatch((const char*)common_name, hostname, FNM_CASEFOLD);
 
-    return (match) ? HOST_FOUND : HOST_NOT_FOUND;
+    return (match == 0) ? HOST_FOUND : HOST_NOT_FOUND;
 }
 
 // Validates minimum RSA key length in certificate
@@ -213,7 +212,6 @@ static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
     size_t num_sans;
     GENERAL_NAME *current_name = NULL;
     unsigned char *dns_name = NULL;
-    char *host_copy = NULL, *dns_copy = NULL;
     int match;
 
     // Extract names within SAN extension
@@ -236,8 +234,8 @@ static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = validate_hostname((const char *)dns_name, hostname);
-            if (match) {
+            match = fnmatch((const char*)dns_name, hostname, FNM_CASEFOLD);
+            if (!match) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return SAN_FOUND;
             }
