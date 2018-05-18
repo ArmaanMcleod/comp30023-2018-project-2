@@ -55,7 +55,7 @@ void free_certificates(list_t *certificates) {
         prev = curr;
         curr = curr->next;
         free(prev->info->path);
-        free(prev->info->url);
+        free(prev->info->hostname);
         free(prev->info);
         free(prev);
     }

@@ -7,7 +7,7 @@
 // Certificate information stored here
 typedef struct {
     char *path;
-    char *url;
+    char *hostname;
 } certificate_t;
 
 // Certifcate node

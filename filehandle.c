@@ -5,7 +5,7 @@
 list_t *read_input_csv(const char *csv_path) {
     FILE *stream = NULL;
     char buffer[BUFFER_SIZE] = {0};
-    char *temp = NULL, *path = NULL, *url = NULL, *saveptr = NULL;
+    char *temp = NULL, *path = NULL, *hostname = NULL, *saveptr = NULL;
     list_t *certificates = NULL;
     size_t slen;
     const char *delim = " ,";
@@ -55,12 +55,12 @@ list_t *read_input_csv(const char *csv_path) {
             exit(EXIT_FAILURE);
         }
 
-        // Extract url
-        url = strtok_r(NULL, delim, &saveptr);
-        info->url = strdup(url);
-        if (info->url == NULL) {
-            free(info->url);
-            fprintf(stderr, "Error: strdup() can't parse url\n");
+        // Extract hostname
+        hostname = strtok_r(NULL, delim, &saveptr);
+        info->hostname = strdup(hostname);
+        if (info->hostname == NULL) {
+            free(info->hostname);
+            fprintf(stderr, "Error: strdup() can't parse hostname\n");
             exit(EXIT_FAILURE);
         }
 
@@ -90,9 +90,9 @@ void write_results(const char *filename, list_t *certificates) {
 
     // Write to csv file
     while (curr != NULL) {
-        result = verify_certificate(curr->info->path, curr->info->url);
+        result = verify_certificate(curr->info->path, curr->info->hostname);
         fprintf(output, "%s,%s,%d\n", curr->info->path,
-                                      curr->info->url, result);
+                                      curr->info->hostname, result);
         curr = curr->next;
     }
 

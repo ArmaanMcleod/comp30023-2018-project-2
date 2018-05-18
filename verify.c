@@ -1,4 +1,5 @@
 #include "verify.h"
+#include "wildcard.h"
 
 const char *CONSTRAINT_NAME = "Basic Constraints";
 const char *CONSTRAINT_VALUE = "CA:FALSE";
@@ -48,12 +49,13 @@ static int validate_dates(const X509 *cert) {
 }
 
 // Validates domain name in common name in certificate
-static int validate_common_name(X509 *cert, const char *url) {
+static int validate_common_name(X509 *cert, const char *hostname) {
     int lastpos = -1, match;
     X509_NAME *subject_name = NULL;
     X509_NAME_ENTRY *entry = NULL;
     ASN1_STRING *entry_data = NULL;
     unsigned char *common_name = NULL;
+    char *common_copy = NULL, *host_copy = NULL;
 
     // Get subject name
     subject_name = X509_get_subject_name(cert);
@@ -84,13 +86,13 @@ static int validate_common_name(X509 *cert, const char *url) {
         exit(EXIT_FAILURE);
     }
 
-    // print entry in utf-8 string format
+    // Print entry in string format
     common_name = ASN1_STRING_data(entry_data);
 
-    // Match the string
-    match = fnmatch((const char *)common_name, url, FNM_CASEFOLD);
+    // Validate host name
+    match = validate_hostname((const char*)common_name, hostname);
 
-    return !match;
+    return (match) ? HOST_FOUND : HOST_NOT_FOUND;
 }
 
 // Validates minimum RSA key length in certificate
@@ -162,6 +164,7 @@ static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
             BIO_flush(ext_bio);
             BIO_get_mem_ptr(ext_bio, &bptr);
             BIO_set_close(ext_bio, BIO_NOCLOSE);
+            BIO_free_all(ext_bio);
 
             // Allocate buffer for extension value
             buffer = malloc(bptr->length + 1);
@@ -176,16 +179,16 @@ static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
             memcpy(buffer, bptr->data, bptr->length);
             buffer[bptr->length] = '\0';
 
+            BUF_MEM_free(bptr);
+
             // Check if extension value is correct
             if (strstr(buffer, extension_value)) {
+                free(buffer);
                 return EXTENSION_FOUND;
             }
 
             free(buffer);
-            BUF_MEM_free(bptr);
-            BIO_free_all(ext_bio);
         }
-
     }
 
     return EXTENSION_NOT_FOUND;
@@ -205,11 +208,12 @@ static int validate_key_usage_constraints(const X509 *cert) {
 }
 
 // Validate alternate name extensions
-static int validate_subject_alternative_name(X509 *cert, const char *url) {
+static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
     STACK_OF(GENERAL_NAME) *san_names = NULL;
     size_t num_sans;
     GENERAL_NAME *current_name = NULL;
     unsigned char *dns_name = NULL;
+    char *host_copy = NULL, *dns_copy = NULL;
     int match;
 
     // Extract names within SAN extension
@@ -232,8 +236,8 @@ static int validate_subject_alternative_name(X509 *cert, const char *url) {
             dns_name = ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch((const char *)dns_name, url, FNM_CASEFOLD);
-            if (match == 0) {
+            match = validate_hostname((const char *)dns_name, hostname);
+            if (match) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return SAN_FOUND;
             }
@@ -247,7 +251,7 @@ static int validate_subject_alternative_name(X509 *cert, const char *url) {
 }
 
 // Veritify TLS certificate
-int verify_certificate(const char *cert_path, const char *url) {
+int verify_certificate(const char *cert_path, const char *hostname) {
     BIO *cert_bio = NULL, *out_bio = NULL;
     X509 *cert = NULL;
     int read_cert_bio, extension, result;
@@ -278,13 +282,13 @@ int verify_certificate(const char *cert_path, const char *url) {
     }
 
     // First try and get the common name
-    extension = validate_common_name(cert, url);
+    extension = validate_common_name(cert, hostname);
 
     // If no valid common name exist, check subject alternate names
     if (!extension) {
-        extension = validate_subject_alternative_name(cert, url);
+        extension = validate_subject_alternative_name(cert, hostname);
 
-        // If subject alternate name not found or not present
+        // If subject alternate name not found or not present, SAN invalid
         if (extension == SAN_NOT_FOUND || extension == SAN_NOT_PRESENT) {
             extension = EXTENSION_NOT_FOUND;
         } else {
