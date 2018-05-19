@@ -1,10 +1,5 @@
 #include "verify.h"
 
-const char *CONSTRAINT_NAME = "Basic Constraints";
-const char *CONSTRAINT_VALUE = "CA:FALSE";
-const char *EXTENDED_KEY_NAME = "Extended Key Usage";
-const char *KEY_VALUE = "TLS Web Server Authentication";
-
 // Check if date is valid
 static int check_date(const ASN1_TIME *time_to) {
     int day, sec;
@@ -65,8 +60,8 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     // Get common name
     lastpos = X509_NAME_get_index_by_NID(subject_name, NID_commonName,
                                          lastpos);
-    if (lastpos == -1) {
-        return CN_NOT_PRESENT;
+    if (lastpos == CN_NOT_PRESENT) {
+        return CN_NOT_FOUND;
     }
 
     // Get entry
@@ -100,8 +95,7 @@ static int validate_RSA_key_length(X509 *cert) {
     // Get the public_key
     public_key = X509_get_pubkey(cert);
     if (public_key == NULL) {
-        fprintf(stderr, "Error getting public key from certificate\n");
-        exit(EXIT_FAILURE);
+        return KEY_NOT_PRESENT;
     }
 
     // Verify that public key is RSA
@@ -123,93 +117,84 @@ static int validate_RSA_key_length(X509 *cert) {
     return KEY_CORRECT;
 }
 
-// Checks extensions exist in list
-static int validate_extension(STACK_OF(X509_EXTENSION) *ext_list,
-                              const char *extension_name,
-                              const char *extension_value) {
-    X509_EXTENSION *ext = NULL;
-    ASN1_OBJECT *obj = NULL;
-    BIO *ext_bio = NULL;
+int validate_extension(X509 *cert, int extension, const char *value) {
+    X509_EXTENSION *ex = NULL;
     BUF_MEM *bptr = NULL;
-    char *buffer = NULL;
-    char ext_buffer[EXT_BUFFER_SIZE] = {0};
-    size_t num_exts;
+    char *buffer = NULL, *match = NULL;
+    BIO *ext_bio;
 
-    // Get number of extension
-    num_exts = (ext_list != NULL) ? sk_X509_EXTENSION_num(ext_list)
-                                    : EXTENSION_NOT_PRESENT;
+    // Get the extension
+    ex = X509_get_ext(cert, extension);
 
-    // Go over the extensions
-    for (size_t i = 0; i < num_exts; i++) {
-        // Get extension
-        ext = sk_X509_EXTENSION_value(ext_list, i);
+    // Create the bio
+    ext_bio = BIO_new(BIO_s_mem());
 
-        // Get object
-        obj = X509_EXTENSION_get_object(ext);
-        memset(ext_buffer, '\0', sizeof ext_buffer);
-        OBJ_obj2txt(ext_buffer, EXT_BUFFER_SIZE, obj, 0);
-
-        // Check if extension name matches
-        if (strstr(ext_buffer, extension_name)) {
-            // Get extension bio
-            ext_bio = BIO_new(BIO_s_mem());
-            if (!X509V3_EXT_print(ext_bio, ext, 0, 0)) {
-                fprintf(stderr, "Error reading in extension\n");
-                exit(EXIT_FAILURE);
-            }
-
-            // Insert pointer into bio and close it
-            BIO_flush(ext_bio);
-            BIO_get_mem_ptr(ext_bio, &bptr);
-            BIO_set_close(ext_bio, BIO_NOCLOSE);
-            BIO_free_all(ext_bio);
-
-            // Allocate buffer for extension value
-            buffer = malloc(bptr->length + 1);
-            if (buffer == NULL) {
-                free(buffer);
-                fprintf(stderr, "Cannot malloc() %zu bytes for buffer\n",
-                                 bptr->length);
-                exit(EXIT_FAILURE);
-            }
-
-            // Copy extension into buffer
-            memcpy(buffer, bptr->data, bptr->length);
-            buffer[bptr->length] = '\0';
-
-            BUF_MEM_free(bptr);
-
-            // Check if extension value is correct
-            if (strstr(buffer, extension_value)) {
-                free(buffer);
-                return EXTENSION_FOUND;
-            }
-
-            free(buffer);
-        }
+    // Check extension can be read into bio
+    if (!X509V3_EXT_print(ext_bio, ex, 0, 0)) {
+        BIO_printf(ext_bio, "Error in reading extensison in BIO\n");
+        exit(EXIT_FAILURE);
     }
 
-    return EXTENSION_NOT_FOUND;
+    BIO_flush(ext_bio);
+    BIO_get_mem_ptr(ext_bio, &bptr);
+    BIO_set_close(ext_bio, BIO_NOCLOSE);
+
+    // Allocate buffer for extension value
+    buffer = malloc(bptr->length + 1);
+    if (buffer == NULL) {
+        free(buffer);
+        fprintf(stderr, "Cannot malloc() %zu bytes for buffer\n",
+                         bptr->length);
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy extension into buffer
+    memcpy(buffer, bptr->data, bptr->length);
+    buffer[bptr->length] = '\0';
+
+    BIO_free_all(ext_bio);
+    BUF_MEM_free(bptr);
+
+    // Match extension values
+    match = strstr(buffer, value);
+    if (match == NULL) {
+        free(buffer);
+        return EXTENSION_NOT_FOUND;
+    }
+
+    free(buffer);
+    return EXTENSION_FOUND;
 }
 
 // Validates key usages and constraints
-static int validate_key_usage_constraints(const X509 *cert) {
-    X509_CINF *cert_info = NULL;
-    STACK_OF(X509_EXTENSION) *ext_list = NULL;
-    int check_constraint, check_extended;
+static int validate_key_usage_constraints(X509 *cert) {
+    int extended_key = -1, constraint = -1;
+    int validate_extended_key, validate_constraint;
+    const char *constraint_value = "CA:FALSE";
+    const char *extended_key_value = "TLS Web Server Authentication";
 
-    // Extract certificate extension
-    cert_info = cert->cert_info;
-    ext_list = cert_info->extensions;
+    // Get extended key
+    extended_key = X509_get_ext_by_NID(cert, NID_ext_key_usage, extended_key);
+    if (extended_key == EXTENSION_NOT_PRESENT) {
+        return EXTENSION_NOT_FOUND;
+    }
 
-    check_constraint = validate_extension(ext_list, CONSTRAINT_NAME,
-                                          CONSTRAINT_VALUE);
+    // Get constraint
+    constraint = X509_get_ext_by_NID(cert, NID_basic_constraints, constraint);
+    if (constraint == EXTENSION_NOT_PRESENT) {
+        return EXTENSION_NOT_FOUND;
+    }
 
-    check_extended = validate_extension(ext_list, EXTENDED_KEY_NAME,
-                                        KEY_VALUE);
+    // Validate extended key
+    validate_extended_key = validate_extension(cert, extended_key,
+                                               extended_key_value);
 
-    return check_constraint == EXTENSION_FOUND &&
-           check_extended == EXTENSION_FOUND;
+    // Validate constraint
+    validate_constraint = validate_extension(cert, constraint,
+                                             constraint_value);
+
+    return validate_extended_key == EXTENSION_FOUND &&
+           validate_constraint == EXTENSION_FOUND;
 }
 
 // Validate alternate name extensions
@@ -301,10 +286,11 @@ int verify_certificate(const char *cert_path, const char *hostname) {
     }
 
     // Validate certificate conditions
+    // Do explicit checks just in case
     result = validate_dates(cert) &&
-             validate_RSA_key_length(cert) &&
-             validate_key_usage_constraints(cert) &&
-             extension;
+             validate_RSA_key_length(cert) == KEY_CORRECT &&
+             validate_key_usage_constraints(cert) == EXTENSION_FOUND &&
+             extension == EXTENSION_FOUND;
 
      // Free up certificate contents
      X509_free(cert);

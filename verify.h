@@ -16,9 +16,6 @@
 
 #define MIN_RSA_LENGTH 2048
 #define EXT_BUFFER_SIZE 1024
-#define VALID_EXTENSIONS
-
-#define ARRAY_LENGTH(x) (sizeof x / sizeof *x)
 
 typedef enum {
     SAN_NOT_PRESENT = -1,
@@ -45,15 +42,13 @@ typedef enum {
 } time_type_t;
 
 typedef enum {
-    KEY_SHORTER,
-    KEY_CORRECT
+    KEY_NOT_PRESENT = -1,
+    KEY_SHORTER = 0,
+    KEY_CORRECT = 1
 } key_length_t;
 
-extern const char *CONSTRAINT_NAME;
 extern const char *CONSTRAINT_VALUE;
-extern const char *EXTENDED_KEY_NAME;
-extern const char *ENHANCED_KEY_NAME;
-extern const char *KEY_VALUE;
+extern const char *EXTENDED_KEY_VALUE;
 
 int verify_certificate(const char *cert_path, const char *url);
 
