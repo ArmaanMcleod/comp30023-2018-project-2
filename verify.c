@@ -175,13 +175,13 @@ static int validate_key_usage_constraints(X509 *cert) {
 
     // Get extended key
     extended_key = X509_get_ext_by_NID(cert, NID_ext_key_usage, extended_key);
-    if (extended_key == EXTENSION_NOT_PRESENT) {
+    if (extended_key == EXTENSION_ERROR) {
         return EXTENSION_NOT_FOUND;
     }
 
     // Get constraint
     constraint = X509_get_ext_by_NID(cert, NID_basic_constraints, constraint);
-    if (constraint == EXTENSION_NOT_PRESENT) {
+    if (constraint == EXTENSION_ERROR) {
         return EXTENSION_NOT_FOUND;
     }
 

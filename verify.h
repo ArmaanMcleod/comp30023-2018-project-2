@@ -30,7 +30,7 @@ typedef enum {
 } common_t;
 
 typedef enum {
-    EXTENSION_NOT_PRESENT = -1,
+    EXTENSION_ERROR = -1,
     EXTENSION_NOT_FOUND = 0,
     EXTENSION_FOUND = 1
 } ext_t;
@@ -46,9 +46,6 @@ typedef enum {
     KEY_SHORTER = 0,
     KEY_CORRECT = 1
 } key_length_t;
-
-extern const char *CONSTRAINT_VALUE;
-extern const char *EXTENDED_KEY_VALUE;
 
 int verify_certificate(const char *cert_path, const char *url);
 
