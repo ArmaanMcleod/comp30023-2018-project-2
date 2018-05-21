@@ -117,11 +117,11 @@ static int validate_RSA_key_length(X509 *cert) {
     return KEY_CORRECT;
 }
 
-int validate_extension(X509 *cert, int extension, const char *value) {
+static int validate_extension(X509 *cert, int extension, const char *value) {
     X509_EXTENSION *ex = NULL;
     BUF_MEM *bptr = NULL;
     char *buffer = NULL, *match = NULL;
-    BIO *ext_bio;
+    BIO *ext_bio = NULL;
 
     // Get the extension
     ex = X509_get_ext(cert, extension);
