@@ -1,3 +1,14 @@
+/*============================================================================
+#                             COMP30023 Assignment 2                         #
+#                           TLS X509 certificate checker                     #
+#      FileName: certlist.c                                                  #
+#       Purpose: Certificate list functions                                  #
+#        Author: Armaan McLeod                                               #
+#         Email: dhaliwala@student.unimelb.edu.au                            #
+# StudentNumber: 837674                                                      #
+#      UserName: dhaliwala                                                   #
+============================================================================*/
+
 #include "certlist.h"
 
 // Create linked list of certificates

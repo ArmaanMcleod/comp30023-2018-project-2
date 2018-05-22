@@ -1,3 +1,14 @@
+/*============================================================================
+#                             COMP30023 Assignment 2                         #
+#                           TLS X509 certificate checker                     #
+#      FileName: filehandle.c                                                #
+#       Purpose: Handles reading and writing of files                        #
+#        Author: Armaan Dhaliwal-McLeod                                      #
+#         Email: dhaliwala@student.unimelb.edu.au                            #
+# StudentNumber: 837674                                                      #
+#      UserName: dhaliwala                                                   #
+============================================================================*/
+
 #include "filehandle.h"
 #include "verify.h"
 
@@ -88,7 +99,7 @@ void write_results(const char *filename, list_t *certificates) {
         exit(EXIT_FAILURE);
     }
 
-    // Write to csv file
+    // Go through list and Write to csv file
     while (curr != NULL) {
         result = verify_certificate(curr->info->path, curr->info->hostname);
         fprintf(output, "%s,%s,%d\n", curr->info->path,

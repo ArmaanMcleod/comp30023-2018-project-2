@@ -8,13 +8,6 @@ yellow=$(tput setaf 3)
 printf "${magenta}LOCAL TESTS${normal}\n"
 printf "%0.s-" {1..120}
 printf "\n"
-
-printf "${yellow}INSTALL COLORDIFF${normal}\n"
-printf "%0.s-" {1..120}
-printf "\n"
-sudo apt install colordiff
-printf "%0.s-" {1..120}
-printf "\n"
 chmod +x ./test.sh
 ./test.sh
 

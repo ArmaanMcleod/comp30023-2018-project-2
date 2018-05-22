@@ -1,3 +1,14 @@
+/*============================================================================
+#                             COMP30023 Assignment 2                         #
+#                           TLS X509 certificate checker                     #
+#      FileName: verify.c                                                    #
+#       Purpose: Verifies X509 certificate                                   #
+#        Author: Armaan Dhaliwal-McLeod                                      #
+#         Email: dhaliwala@student.unimelb.edu.au                            #
+# StudentNumber: 837674                                                      #
+#      UserName: dhaliwala                                                   #
+============================================================================*/
+
 #include "verify.h"
 
 // Check if date is valid
@@ -60,8 +71,8 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     // Get common name
     lastpos = X509_NAME_get_index_by_NID(subject_name, NID_commonName,
                                          lastpos);
-    if (lastpos == CN_NOT_PRESENT) {
-        return CN_NOT_FOUND;
+    if (lastpos == -1) {
+        return CN_NOT_PRESENT;
     }
 
     // Get entry
@@ -82,7 +93,8 @@ static int validate_common_name(X509 *cert, const char *hostname) {
     common_name = (char *)ASN1_STRING_data(entry_data);
 
     // Validate host name
-    match = fnmatch(common_name, hostname, FNM_CASEFOLD);
+    // Do wilcard checking just incase
+    match = fnmatch(common_name, hostname, FNM_CASEFOLD | FNM_EXTMATCH);
 
     return (match == 0) ? CN_FOUND : CN_NOT_FOUND;
 }
@@ -225,12 +237,11 @@ static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
             dns_name = (char *)ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch(dns_name, hostname, FNM_CASEFOLD);
+            match = fnmatch(dns_name, hostname, FNM_CASEFOLD | FNM_EXTMATCH);
             if (!match) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return SAN_FOUND;
             }
-
         }
     }
 
@@ -274,7 +285,7 @@ int verify_certificate(const char *cert_path, const char *hostname) {
     extension = validate_common_name(cert, hostname);
 
     // If no valid common name exist, check subject alternate names
-    if (extension == CN_NOT_FOUND || CN_NOT_FOUND) {
+    if (extension == CN_NOT_FOUND || extension == CN_NOT_PRESENT) {
         extension = validate_subject_alternative_name(cert, hostname);
 
         // If subject alternate name not found or not present, SAN invalid
