@@ -10,7 +10,7 @@
 ============================================================================*/
 
 #include "verify.h"
-#include "host.h"
+#include "hostcheck.h"
 
 // Check if date is valid
 static int check_date(const ASN1_TIME *time_to) {

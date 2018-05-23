@@ -1,7 +1,7 @@
 /*============================================================================
 #                             COMP30023 Assignment 2                         #
 #                           TLS X509 certificate checker                     #
-#      FileName: host.h                                                      #
+#      FileName: hostcheck.h                                                 #
 #       Purpose: Header for host.c                                           #
 #        Author: Armaan Dhaliwal-McLeod                                      #
 #         Email: dhaliwala@student.unimelb.edu.au                            #
