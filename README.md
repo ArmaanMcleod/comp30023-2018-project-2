@@ -1,8 +1,27 @@
-# COMP30023 Assignment 2
-This repository contains example code and test scripts for Assignment 2. 
+# COMP30023 Assignment 1
+This repository contains Assignment 2 for COMP30023 Computer Systems Semester 1 2018. The aim of this project was to create a TLS certifcate checker that checks X509 certificates.
 
-## Example Certificate Code
-certexample.c contains example code for opening a certificate file using OpenSSL, as well as extracting some values from it.
+## Files
+* **testscript.sh** shell script provided by Chris for testing
+* **test.sh/run.sh** personal shell script files
+* **certcheck.c** main program.
+* **verify.c/verify.h** modules providing verification of certificates.
+* **filehandle.c/filehandle.h** modules providing reading and writing of certificate data and results.
+* **cerlist.c/certlist.h** linked list modules for storing certificates.
+* **host.c/host.h** host validation modules.
 
-## Test Scripts and Certificates
-Additional testscripts and Certificates will be added to the repository shortly
+## Running test script
+Make sure that the **testscript.sh** is executable then run:
+
+./testscript.sh
+
+## Running
+Make sure you compile the server with either *make* or *make certcheck*, then run:
+
+./certcheck *input_csv*
+
+For example:
+
+./certcheck input.csv
+
+Feel free to try it out.
