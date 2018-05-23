@@ -9,15 +9,8 @@
 #      UserName: dhaliwala                                                   #
 ============================================================================*/
 
-#ifndef VERIFY_H
+#ifndef VERIFY_H                                                             
 #define VERIFY_H
-
-#define _GNU_SOURCE
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fnmatch.h>
 
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>

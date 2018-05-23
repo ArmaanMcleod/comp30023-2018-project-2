@@ -10,6 +10,7 @@
 ============================================================================*/
 
 #include "verify.h"
+#include "host.h"
 
 // Check if date is valid
 static int check_date(const ASN1_TIME *time_to) {
@@ -94,9 +95,9 @@ static int validate_common_name(X509 *cert, const char *hostname) {
 
     // Validate host name
     // Do wilcard checking just incase
-    match = fnmatch(common_name, hostname, FNM_CASEFOLD | FNM_EXTMATCH);
+    match = validate_host(common_name, hostname);
 
-    return (match == 0) ? CN_FOUND : CN_NOT_FOUND;
+    return (match == DOMAIN_VALID) ? CN_FOUND : CN_NOT_FOUND;
 }
 
 // Validates minimum RSA key length in certificate
@@ -237,8 +238,8 @@ static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
             dns_name = (char *)ASN1_STRING_data(current_name->d.dNSName);
 
             // Match extension
-            match = fnmatch(dns_name, hostname, FNM_CASEFOLD | FNM_EXTMATCH);
-            if (!match) {
+            match = validate_host(dns_name, hostname);
+            if (match == DOMAIN_VALID) {
                 sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
                 return SAN_FOUND;
             }

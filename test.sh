@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # make the project
 make
 make run
