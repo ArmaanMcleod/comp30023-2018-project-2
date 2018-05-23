@@ -9,7 +9,7 @@
 #      UserName: dhaliwala                                                   #
 ============================================================================*/
 
-#ifndef VERIFY_H                                                             
+#ifndef VERIFY_H
 #define VERIFY_H
 
 #include <openssl/x509.h>
