@@ -1,6 +1,6 @@
 #!/bin/bash
 INFILE="output.csv"
-INPUTFILE="sample_certs/ample_input.csv"
+INPUTFILE="sample_certs/sample_input.csv"
 
 if [ ! -f certcheck ]; then
     echo -e "certcheck executable NOT FOUND - Test Stopped - Check program naming\n"
