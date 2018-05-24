@@ -21,7 +21,16 @@ static int check_sub_domain(const char *name, const char *hostname) {
 
     // Create copies
     name_copy = strdup(name);
+    if (name_copy == NULL) {
+        fprintf(stderr, "Cannot strdup() name\n");
+        exit(EXIT_FAILURE);
+    }
+
     hostname_copy = strdup(hostname);
+    if (hostname_copy == NULL) {
+        fprintf(stderr, "Cannot strdup() hostname\n");
+        exit(EXIT_FAILURE);
+    }
 
     // Extract subdomain
     sub_domain_name = strtok_r(name_copy, delim, &saveptr);
@@ -46,7 +55,16 @@ static int check_domain(const char *name, const char *hostname) {
 
     // Create copies
     name_copy = strdup(name);
+    if (name_copy == NULL) {
+        fprintf(stderr, "Cannot strdup() name\n");
+        exit(EXIT_FAILURE);
+    }
+
     hostname_copy = strdup(hostname);
+    if (hostname_copy == NULL) {
+        fprintf(stderr, "Cannot strdup() hostname\n");
+        exit(EXIT_FAILURE);
+    }
 
     // Extract domain
     domain_name = strchr(name_copy, delim);
