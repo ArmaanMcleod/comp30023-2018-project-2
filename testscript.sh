@@ -1,6 +1,6 @@
 #!/bin/bash
 INFILE="output.csv"
-INPUTFILE="sample_certs/sample_input.csv"
+INPUTFILE="sample_certs/ample_input.csv"
 
 if [ ! -f certcheck ]; then
     echo -e "certcheck executable NOT FOUND - Test Stopped - Check program naming\n"
@@ -29,7 +29,7 @@ results[sample_certs/testeleven.crt,freeca.com]=0
 results[sample_certs/testtwo.crt,www.example.com]=0
 results[sample_certs/testseven.crt,example.com]=0
 
-while IFS=',' read -ra line || [[ -n "$line" ]]; do
+while IFS=$',|\r' read -ra line || [[ -n "$line" ]]; do
     if [ ${results["${line[0]},${line[1]}"]} == ${line[2]} ]
     then
         if [ ${line[2]} == "0" ]
