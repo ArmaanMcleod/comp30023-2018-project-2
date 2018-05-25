@@ -32,11 +32,19 @@ static int check_sub_domain(const char *name, const char *hostname) {
         exit(EXIT_FAILURE);
     }
 
-    // Extract subdomain
+    // Extract subdomains
     sub_domain_name = strtok_r(name_copy, delim, &saveptr);
+    if (sub_domain_name == NULL) {
+        return DOMAIN_INVALID;
+    }
+
     sub_domain_hostname = strtok_r(hostname_copy, delim, &saveptr);
+    if (sub_domain_name == NULL) {
+        return DOMAIN_INVALID;
+    }
 
     // Check sub domains, allowing wildcards to also be considered
+    // Use fnmatch just incase wilcards exist
     result = fnmatch(sub_domain_name, sub_domain_hostname,
                      FNM_CASEFOLD | FNM_EXTMATCH) == 0;
 
@@ -66,9 +74,16 @@ static int check_domain(const char *name, const char *hostname) {
         exit(EXIT_FAILURE);
     }
 
-    // Extract domain
+    // Extract domains
     domain_name = strchr(name_copy, delim);
+    if (domain_name == NULL) {
+        return DOMAIN_INVALID;
+    }
+
     domain_hostname = strchr(hostname_copy, delim);
+    if (domain_hostname == NULL) {
+        return DOMAIN_INVALID;
+    }
 
     // Compare domains
     result = strcasecmp(domain_name, domain_hostname) == 0;
