@@ -20,6 +20,7 @@
 
 #define BUFFER_SIZE 1024
 
+// Function prototypes
 list_t *read_input_csv(const char *csv_path);
 
 void write_results(const char *filename, list_t *certificates);

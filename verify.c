@@ -13,6 +13,8 @@
 #include "hostcheck.h"
 
 // Check if date is valid
+// Inspiration taken from from:
+// https://www.openssl.org/docs/man1.0.2/crypto/ASN1_TIME_diff.html
 static int check_date(const ASN1_TIME *time_to) {
     int day, sec;
 
@@ -55,6 +57,8 @@ static int validate_dates(const X509 *cert) {
 }
 
 // Validates domain name in common name in certificate
+// Inspiration taken from:
+// https://wiki.openssl.org/index.php/Hostname_validation
 static int validate_common_name(X509 *cert, const char *hostname) {
     int lastpos = -1, match;
     X509_NAME *subject_name = NULL;
@@ -130,6 +134,8 @@ static int validate_RSA_key_length(X509 *cert) {
     return KEY_CORRECT;
 }
 
+// Validate extension
+// Sample code take from Lecturer Chris Culnane
 static int validate_extension(X509 *cert, int extension, const char *value) {
     X509_EXTENSION *ex = NULL;
     BUF_MEM *bptr = NULL;
@@ -211,6 +217,8 @@ static int validate_key_usage_constraints(X509 *cert) {
 }
 
 // Validate alternate name extensions
+// Inspiration taken from:
+// https://wiki.openssl.org/index.php/Hostname_validation
 static int validate_subject_alternative_name(X509 *cert, const char *hostname) {
     STACK_OF(GENERAL_NAME) *san_names = NULL;
     size_t num_sans;

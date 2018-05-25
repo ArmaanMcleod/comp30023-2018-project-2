@@ -31,6 +31,7 @@ typedef enum {
     DOMAIN_VALID
 } domain_t;
 
+// Function prototypes
 int validate_host(const char *name, const char *hostname);
 
 #endif
